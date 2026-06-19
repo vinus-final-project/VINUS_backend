@@ -1,0 +1,46 @@
+# Python Cache (파이썬 캐시)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environments (가상환경)
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment Variables (보안 및 환경 변수)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Databases & Docker Volumes (로컬 DB 및 도커 데이터 볼륨)
+*.db
+*.sqlite3
+**/mysql_data/
+**/db_data/
+
+# Logs
+logs/
+*.log
+
+# IDE & Editors (에디터 설정)
+.vscode/
+.idea/
+*.swp
+
+# OS System Files (OS 찌꺼기)
+.DS_Store
+Thumbs.db
+
+# Test & Lint Caches (테스트/린트 캐시)
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/

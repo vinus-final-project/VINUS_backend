@@ -1,0 +1,27 @@
+﻿# --- API 서버 ---
+fastapi==0.116.0
+
+# --- 서버 실행 (uvloop, httptools, websockets, watchfiles 포함) ---
+uvicorn==0.42.0
+
+# --- ORM ---
+sqlalchemy==2.0.32
+
+# --- MySQL 드라이버 ---
+pymysql==1.1.2
+
+# --- JWT 발급/검증 (cryptography 백엔드 포함) ---
+python-jose[cryptography]==3.4.0
+
+# --- 비밀번호 해싱 ---
+passlib[bcrypt]==1.7.4
+bcrypt==3.2.2
+
+# --- WebSocket ---
+websockets==15.0.1
+
+# --- 파일 업로드 / multipart Form 파싱 ---
+python-multipart==0.0.22
+
+# --- Request/Response 검증 ---
+pydantic==2.12.5
