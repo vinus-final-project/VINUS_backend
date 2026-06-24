@@ -1,10 +1,13 @@
-from sqlalchemy import ForeignKey, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
-from app.db.database import Base 
+from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
+
+from app.db.database import Base
 
 
-class Kiosk(Base):
+class ModelsKiosk(Base):
     __tablename__ = "kiosk"
 
-    k_id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    s_id: Mapped[int] = mapped_column(Integer, ForeignKey("stores.s_id"), nullable=False)
+    k_id = Column(String(255), primary_key=True)
+    s_id = Column(Integer, ForeignKey("stores.s_id"), nullable=False)
+
+    store = relationship("ModelsStores", back_populates="kiosks")
