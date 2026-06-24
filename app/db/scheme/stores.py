@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict
+from typing import Optional
 
 
 # Base
@@ -16,6 +17,7 @@ class SchemeStoresCreate(SchemeStoresBase):
 # R - 조회
 class SchemeStoresRead(SchemeStoresBase):
     s_id: int
+    b_name: int
 
     model_config = ConfigDict(from_attributes=True)
 
