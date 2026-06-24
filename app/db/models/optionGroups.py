@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
-from database import Base
+from app.db.database import Base
 
 
 class ModelsOptionGroups(Base):

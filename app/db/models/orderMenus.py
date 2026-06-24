@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, ForeignKey
-from database import Base
+from app.db.database import Base
 from sqlalchemy.orm import relationship
 
 class ModelsOrderMenus(Base):

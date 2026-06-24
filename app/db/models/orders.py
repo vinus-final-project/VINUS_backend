@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Enum, ForeignKey
 from sqlalchemy.sql import func
 import enum
-from database import Base
+from app.db.database import Base
 from sqlalchemy.orm import relationship
 
 class OdState(enum.Enum):
