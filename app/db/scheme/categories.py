@@ -11,4 +11,3 @@ class SchemeCategoriesRead(SchemeCategoriesBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-    #커밋 연습
