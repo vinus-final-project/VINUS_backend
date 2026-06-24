@@ -1,0 +1,13 @@
+from sqlalchemy import Column, Integer, String, ForeignKey, UniqueConstraint
+from database import Base
+from sqlalchemy.orm import relationship
+
+class ModelsMenus(Base):
+    __tablename__ = "menus"
+
+    m_id = Column(Integer, primary_key=True, autoincrement=True)
+    b_id = Column(Integer, ForeignKey("brands.b_id"), nullable=False)  # brands 테이블이 있다고 가정
+    c_id = Column(Integer, ForeignKey("categories.c_id"), nullable=False)  # categories 테이블이 있다고 가정
+    m_name = Column(String(100), nullable=False)
+    m_price = Column(Integer, nullable=False)
+    m_description = Column(String(255), nullable=True)
