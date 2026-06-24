@@ -17,6 +17,12 @@ class ModelsOptionGroups(Base):
     
     
 
+    ## (m_id, og_name) 복합 유니크 제약조건 추가
     __table_args__ = (
         UniqueConstraint("m_id", "og_name", name="uq_optionGroups_m_id_og_name"),
     )
+
+    #관계 설정
+
+    menu = relationship("ModelsMenus", back_populates="option_groups")
+    options = relationship("ModelsOptions", back_populates="option_group")

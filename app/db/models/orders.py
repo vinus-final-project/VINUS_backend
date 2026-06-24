@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime, Enum, ForeignKey
 from sqlalchemy.sql import func
 import enum
 from database import Base
+from sqlalchemy.orm import relationship
 
 class OdState(enum.Enum):
     PENDING = "PENDING"
@@ -21,3 +22,9 @@ class ModelsOrders(Base):
     od_price = Column(Integer, nullable=False)
     od_state = Column(Enum(OdState), default=OdState.PENDING)
     od_no = Column(Integer, nullable=False)
+
+    #관계 설정
+
+    kiosk = relationship("ModelsKiosk", back_populates="orders")
+    store = relationship("ModelsStores", back_populates="orders")
+    order_menus = relationship("ModelsOrderMenus", back_populates="order")

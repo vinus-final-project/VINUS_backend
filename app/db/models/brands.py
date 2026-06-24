@@ -7,7 +7,12 @@ from app.db.database import Base
 class ModelsBrands(Base):
     __tablename__ = "brands"
 
+    #변수 설정
     b_id = Column(Integer, primary_key=True)
     b_name = Column(String(255), nullable=False)
 
+    
+
+    #관계 설정
     stores = relationship("ModelsStores", back_populates="brand")
+    

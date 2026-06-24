@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, Boolean, ForeignKey, UniqueConstraint
 from database import Base
+from sqlalchemy.orm import relationship
 
 class ModelsSoldouts(Base):
     __tablename__ = "soldouts"
@@ -10,6 +11,12 @@ class ModelsSoldouts(Base):
     m_id = Column(Integer, ForeignKey("menus.m_id"), nullable=False)   # menus 테이블 - 다른 분 담당
     so_sold = Column(Boolean, nullable=False)
 
+    # (s_id, m_id) 복합 유니크 제약조건 추가
     __table_args__ = (
         UniqueConstraint("s_id", "m_id", name="uq_soldouts_s_id_m_id"),
     )
+
+    #관계 설정
+
+    menu = relationship("ModelsMenus", back_populates="sold_outs")
+    store = relationship("ModelsStores", back_populates="sold_outs")
