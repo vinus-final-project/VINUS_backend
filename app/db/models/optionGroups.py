@@ -14,8 +14,6 @@ class ModelsOptionGroups(Base):
     og_min = Column(Integer, nullable=False, default=0)
     og_max = Column(Integer, nullable=False, default=999)
 
-    
-    
 
     ## (m_id, og_name) 복합 유니크 제약조건 추가
     __table_args__ = (

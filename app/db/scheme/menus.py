@@ -39,6 +39,9 @@ class SchemeMenusBase(BaseModel):
 class SchemeMenusCreate(SchemeMenusBase):
     pass
 
+# 1. 메뉴 기본 조회용 (/menus Response)
+class SchemeMenusRead(SchemeMenusBase):
+    m_id: int
 
 
 # 1. 메뉴 상세 조회용 (/menus/{m_id} Response)
