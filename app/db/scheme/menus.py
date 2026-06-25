@@ -43,9 +43,8 @@ class SchemeMenusCreate(SchemeMenusBase):
 class SchemeMenusRead(SchemeMenusBase):
     m_id: int
 
-    model_config = ConfigDict(from_attributes=True)
 
-# 2. 메뉴 상세 조회용 (/menus/{m_id} Response)
+# 1. 메뉴 상세 조회용 (/menus/{m_id} Response)
 class SchemeMenuDetailRead(BaseModel):
     m_id: int
     m_name: str
