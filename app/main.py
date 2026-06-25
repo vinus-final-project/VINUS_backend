@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 import uvicorn
-from routers import stores
-from routers import menus
-from routers import categories  # 우리가 만든 라우터들 import
+from app.routers import stores
+from app.routers import menus
+from app.routers import categories  # 우리가 만든 라우터들 import
 
 app = FastAPI(
     title="VINUS Kiosk Backend API",

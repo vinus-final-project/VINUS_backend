@@ -1,34 +1,68 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
 from app.db.database import get_db
-from app.db.scheme.menus import SchemeMenusRead
-from app.db.crud.menus import CrudMenus
+from app.services.menus import ServicesMenus
 
 router = APIRouter(prefix="/menus", tags=["Menus"])
 
-# 명세서의 menus: Array 구조를 맞추기 위한 래퍼 스키마
+# --- 1. [메뉴 조회]용 Pydantic 스키마 정의 ---
+class SchemeMenuSimple(BaseModel):
+    m_id: int
+    c_id: int
+    m_name: str
+    m_price: int
+
+    class Config:
+        from_attributes = True
+
 class RoutersMenuListResponse(BaseModel):
-    menus: List[SchemeMenusRead]
+    menus: List[SchemeMenuSimple]
+
+
+# --- 2. [메뉴 상세 조회]용 중첩 Pydantic 스키마 정의 ---
+class SchemeAllergy(BaseModel):
+    a_id: int
+    a_name: str
+
+class SchemeIngredient(BaseModel):
+    i_id: int
+    i_name: str
+
+class SchemeOption(BaseModel):
+    op_id: int
+    op_name: str
+    op_price: int
+    og_id: int
+
+class SchemeOptionGroup(BaseModel):
+    og_id: int
+    og_name: str
+    og_required: bool
+    og_min: int
+    og_max: int
+    options: List[SchemeOption]
+
+class RoutersMenuDetailResponse(BaseModel):
+    m_id: int
+    m_name: str
+    m_price: int
+    m_description: Optional[str] = None
+    allergies: List[SchemeAllergy]
+    ingredients: List[SchemeIngredient]
+    option_groups: List[SchemeOptionGroup]
+
+
+# --- 3. API 엔드포인트 라우터 정의 ---
 
 @router.get("", response_model=RoutersMenuListResponse, status_code=status.HTTP_200_OK)
 async def read_menus(c_id: int, db: AsyncSession = Depends(get_db)):
-    db_menus = await CrudMenus.get_menus_by_category(db, category_id=c_id)
-    
-    # 명세서 필드명 구조에 매칭되도록 변환 리스트 구축
-    response_menus = []
-    for m in db_menus:
-        # sold_outs 테이블 데이터가 있으면 해당 sold 여부 확인 (기본값 False 가정)
-        is_sold = m.sold_outs[0].soldout_sold if m.sold_outs else False
-        
-        response_menus.append({
-            "m_id": m.menu_id,
-            "c_id": m.category_id,
-            "m_name": m.menu_name,
-            "m_price": m.menu_price,
-            "m_description": m.menu_description,
-            "so_sold": is_sold
-        })
-        
-    return {"menus": response_menus}
+    # 서비스를 호출하여 정제된 카테고리별 메뉴 목록 반환
+    return await ServicesMenus.get_menu_list_by_category(c_id, db)
+
+
+@router.get("/{m_id}", response_model=RoutersMenuDetailResponse, status_code=status.HTTP_200_OK)
+async def read_menu_detail(m_id: int, db: AsyncSession = Depends(get_db)):
+    # 서비스를 호출하여 구조화된 상세 정보를 반환
+    return await ServicesMenus.get_single_menu_detail(m_id, db)
