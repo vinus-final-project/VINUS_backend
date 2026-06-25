@@ -11,8 +11,6 @@ class OdState(str, Enum):
 # Base
 class SchemeOrdersBase(BaseModel):
     se_id: str
-    k_id: str
-    s_id: int
     od_price: int
     od_no: int
     od_state: OdState = OdState.PENDING

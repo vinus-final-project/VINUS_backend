@@ -42,7 +42,6 @@ class SchemeMenusCreate(SchemeMenusBase):
 # 1. 메뉴 기본 조회용 (/menus Response)
 class SchemeMenusRead(SchemeMenusBase):
     m_id: int
-    so_sold: bool  # 명세서상 기본 조회에 필요한 품절 상태 필드 추가
 
     model_config = ConfigDict(from_attributes=True)
 
