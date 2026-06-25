@@ -12,7 +12,6 @@ app = FastAPI(
 
 # 라우터 등록
 app.include_router(categories.router)
-app.include_router(stores.router)
 app.include_router(menus.router)
 
 @app.get("/")
