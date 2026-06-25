@@ -12,10 +12,10 @@ class ServicesMenus:
         for m in db_menus:
             # 명세서에서 m_description 필드가 제외되었으므로 깔끔하게 필요한 데이터만 정제
             response_menus.append({
-                "m_id": m.menu_id,
-                "c_id": m.category_id,
-                "m_name": m.menu_name,
-                "m_price": m.menu_price
+                "m_id": m.m_id,
+                "c_id": m.c_id,
+                "m_name": m.m_name,
+                "m_price": m.m_price
             })
             
         return {"menus": response_menus}
@@ -37,8 +37,8 @@ class ServicesMenus:
             for ma in db_menu.menu_allergies:
                 if ma.allergy:
                     allergies_list.append({
-                        "a_id": ma.allergy.allergy_id,
-                        "a_name": ma.allergy.allergy_name
+                        "a_id": ma.allergy.a_id,
+                        "a_name": ma.allergy.a_name
                     })
 
         # 2. 성분 배열 조립
@@ -47,8 +47,8 @@ class ServicesMenus:
             for mi in db_menu.menu_ingredients:
                 if mi.ingredient:
                     ingredients_list.append({
-                        "i_id": mi.ingredient.ingredient_id,
-                        "i_name": mi.ingredient.ingredient_name
+                        "i_id": mi.ingredient.i_id,
+                        "i_name": mi.ingredient.i_name
                     })
 
         # 3. 옵션 그룹 및 하위 옵션 배열 조립
@@ -60,27 +60,27 @@ class ServicesMenus:
                 if hasattr(og, "options") and og.options:
                     for op in og.options:
                         options_list.append({
-                            "op_id": op.option_id,
-                            "op_name": op.option_name,
-                            "op_price": op.option_price,
-                            "og_id": op.option_group_id
+                            "op_id": op.op_id,
+                            "op_name": op.op_name,
+                            "op_price": op.op_price,
+                            "og_id": op.og_id
                         })
                 
                 option_groups_list.append({
-                    "og_id": og.option_group_id,
-                    "og_name": og.option_group_name,
-                    "og_required": og.option_group_required,
-                    "og_min": og.option_group_min,
-                    "og_max": og.option_group_max,
+                    "og_id": og.og_id,
+                    "og_name": og.og_name,
+                    "og_required": og.og_required,
+                    "og_min": og.og_min,
+                    "og_max": og.og_max,
                     "options": options_list  # 내포된 Array 매칭
                 })
 
         # 명세서의 Response 필드와 완벽하게 1:1 매칭된 최종 결과물 리턴
         return {
-            "m_id": db_menu.menu_id,
-            "m_name": db_menu.menu_name,
-            "m_price": db_menu.menu_price,
-            "m_description": db_menu.menu_description,
+            "m_id": db_menu.m_id,
+            "m_name": db_menu.m_name,
+            "m_price": db_menu.m_price,
+            "m_description": db_menu.m_description,
             "allergies": allergies_list,
             "ingredients": ingredients_list,
             "option_groups": option_groups_list
