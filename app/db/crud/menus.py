@@ -6,11 +6,27 @@ from app.db.models.menus import ModelsMenus
 class CrudMenus:
     @staticmethod
     async def get_menus_by_category(db: AsyncSession, category_id: int):
-        # 특정 카테고리의 메뉴들을 가져오면서 품절 테이블(sold_outs) 상태 정보를 조인합니다.
+        # [수정] 모델 변수명 규칙에 맞춰서 category_id ➔ c_id로 변경했습니다.
         query = (
             select(ModelsMenus)
             .options(joinedload(ModelsMenus.sold_outs))
-            .where(ModelsMenus.category_id == category_id)
+            .where(ModelsMenus.c_id == category_id)  
         )
         result = await db.execute(query)
         return result.scalars().all()
+
+    @staticmethod
+    async def get_menu_detail(db: AsyncSession, menu_id: int):
+        # [추가] 상세 페이지용 복잡한 조인(알레르기, 성분, 옵션)들을 여기서 한 번에 처리합니다.
+        # [수정] 모델 변수명 규칙에 맞춰서 menu_id ➔ m_id로 매칭했습니다.
+        query = (
+            select(ModelsMenus)
+            .options(
+                joinedload(ModelsMenus.menu_allergies).joinedload(ModelsMenus.menu_allergies.allergy),
+                joinedload(ModelsMenus.menu_ingredients).joinedload(ModelsMenus.menu_ingredients.ingredient),
+                joinedload(ModelsMenus.option_groups).joinedload(ModelsMenus.option_groups.options)
+            )
+            .where(ModelsMenus.m_id == menu_id)  
+        )
+        result = await db.execute(query)
+        return result.scalars().first()  # 단건 조회의 경우 .first()를 사용합니다.
