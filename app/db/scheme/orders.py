@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from enum import Enum
 
@@ -24,8 +24,8 @@ class SchemeOrdersResponse(SchemeOrdersBase):
     od_id: int
     od_time: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 # U - Update
 class SchemeOrdersUpdate(BaseModel):

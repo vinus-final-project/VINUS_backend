@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.crud.menus import CrudMenus
 
-class ServiceMenus:
+class ServicesMenus:
     @staticmethod
     async def get_menu_list_by_category(c_id: int, db: AsyncSession):
         # [메뉴 조회 API]

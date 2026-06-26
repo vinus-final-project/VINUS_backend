@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 # Base
 class SchemeOrderMenusBase(BaseModel):
@@ -14,8 +14,8 @@ class SchemeOrderMenusCreate(SchemeOrderMenusBase):
 class SchemeOrderMenusResponse(SchemeOrderMenusBase):
     o_m_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 # U - Update
 class SchemeOrderMenusUpdate(BaseModel):

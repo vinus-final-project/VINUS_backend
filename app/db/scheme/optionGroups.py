@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 # Base
 class SchemeOptionGroupsBase(BaseModel):
@@ -16,8 +16,8 @@ class SchemeOptionGroupsCreate(SchemeOptionGroupsBase):
 class SchemeOptionGroupsResponse(SchemeOptionGroupsBase):
     og_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 # U - Update
 class SchemeOptionGroupsUpdate(BaseModel):

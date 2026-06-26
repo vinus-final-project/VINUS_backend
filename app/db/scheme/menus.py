@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 
 # --- [메뉴 조회]용 스키마 ---
@@ -8,8 +8,8 @@ class SchemeMenuSimple(BaseModel):
     m_name: str
     m_price: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 class RoutersMenuListResponse(BaseModel):
     menus: List[SchemeMenuSimple]

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 # Base
 class SchemeOrderMenuOptionsBase(BaseModel):
@@ -13,8 +13,8 @@ class SchemeOrderMenuOptionsCreate(SchemeOrderMenuOptionsBase):
 class SchemeOrderMenuOptionsResponse(SchemeOrderMenuOptionsBase):
     o_m_o_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 # U - Update
 # 주문-메뉴-옵션은 수정 없음 (삭제 후 재생성)
