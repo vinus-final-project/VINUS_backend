@@ -11,7 +11,7 @@ class SchemeMenusSimple(BaseModel):
     m_name: str
     m_price: int
 
-class RoutersMenuListsResponse(BaseModel):
+class RoutersMenusListResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True) # 여긴 안해도 되는데 통일성 차원에서 넣음
     menus: List[SchemeMenusSimple]
 
