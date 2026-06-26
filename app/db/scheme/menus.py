@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 from pydantic import ConfigDict
 
@@ -13,6 +13,7 @@ class SchemeMenusSimple(BaseModel):
 
 class RoutersMenusListResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True) # 여긴 안해도 되는데 통일성 차원에서 넣음
+    menus: List[SchemeMenusSimple]
     menus: List[SchemeMenusSimple]
 
 
@@ -43,6 +44,7 @@ class SchemeOptionGroups(BaseModel):
     og_min: int
     og_max: int
     options: List[SchemeOptions]
+    options: List[SchemeOptions]
 
 class RoutersMenusDetailResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -50,6 +52,9 @@ class RoutersMenusDetailResponse(BaseModel):
     m_name: str
     m_price: int
     m_description: Optional[str] = None
+    allergies: List[SchemeAllergies]
+    ingredients: List[SchemeIngredients]
+    option_groups: List[SchemeOptionGroups]
     allergies: List[SchemeAllergies]
     ingredients: List[SchemeIngredients]
     option_groups: List[SchemeOptionGroups]

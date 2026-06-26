@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 # Base
 class SchemeOptionsBase(BaseModel):
@@ -14,8 +14,8 @@ class SchemeOptionsCreate(SchemeOptionsBase):
 class SchemeOptionsResponse(SchemeOptionsBase):
     op_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 # U - Update
 class SchemeOptionsUpdate(BaseModel):

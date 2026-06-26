@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
 class SchemeAllergiesBase(BaseModel):
@@ -10,5 +10,4 @@ class SchemeAllergiesCreate(SchemeAllergiesBase):
 class SchemeAllergiesResponse(SchemeAllergiesBase):
     a_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

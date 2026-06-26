@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
 class SchemeIngredientsBase(BaseModel):
@@ -10,5 +10,4 @@ class SchemeIngredientsCreate(SchemeIngredientsBase):
 class SchemeIngredientsResponse(SchemeIngredientsBase):
     i_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
