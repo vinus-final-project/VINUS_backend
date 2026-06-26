@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, UniqueConstraint
 from app.db.database import Base
 from sqlalchemy.orm import relationship
 
-class ModelsMenuAllergy(Base):
+class ModelsMenuAllergies(Base):
     __tablename__ = "menuAllergies"
 
     #변수 설정

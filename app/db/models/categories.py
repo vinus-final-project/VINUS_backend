@@ -6,4 +6,4 @@ class ModelsCategories(Base):
 
     # 변수 선언
     c_id = Column(Integer, primary_key=True)
-    c_name = Column(String, nullable=False)
+    c_name = Column(String(100), nullable=False)

@@ -1,13 +1,13 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
-class SchemeAllergyBase(BaseModel):
+class SchemeAllergiesBase(BaseModel):
     a_name: str
 
-class SchemeAllergyCreate(SchemeAllergyBase):
+class SchemeAllergyCreate(SchemeAllergiesBase):
     pass
 
-class SchemeAllergyResponse(SchemeAllergyBase):
+class SchemeAllergyResponse(SchemeAllergiesBase):
     a_id: int
 
     model_config = ConfigDict(from_attributes=True)

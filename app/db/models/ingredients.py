@@ -2,12 +2,12 @@ from sqlalchemy import Column, Integer, String, ForeignKey, UniqueConstraint
 from app.db.database import Base
 from sqlalchemy.orm import relationship
 
-class ModelsIngredient(Base):
+class ModelsIngredients(Base):
     __tablename__ = "ingredients"
 
     #변수 설정
     i_id = Column(Integer, primary_key=True, autoincrement=True)
-    i_name = Column(String, nullable=False)
+    i_name = Column(String(100), nullable=False)
 
 
     #관계 설정
