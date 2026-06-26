@@ -1,66 +1,62 @@
 import uvicorn
+from contextlib import asynccontextmanager
+
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.db.database import Base, async_engine, AsyncSessionLocal
-# from app.db.seed import run_all_seeds
-from fastapi.concurrency import asynccontextmanager
 
-# from app.middleware.token_refresh import RefreshTokenMiddleware
+from app.db.database import async_engine
 
-# from app.routers.attendance import router as attendance_router
-# from app.routers.category import router as category_router
-# from app.routers.cloth import router as cloth_router
-# from app.routers.friend_todo_view import router as friend_todo_view_router
-# from app.routers.friend import router as friend_router
-# from app.routers.img import router as img_router
-# from app.routers.music import router as music_router
-# from app.routers.notification import router as notification_router
-# from app.routers.pw_history import router as pw_history_router
-# from app.routers.report import router as report_router
-# from app.routers.todo import router as todo_router
-# from app.routers.user import router as user_router
+from app.routers.categories import router as categories_router
+from app.routers.menus import router as menus_router
+from app.routers.voice import router as voice_router
+
 
 load_dotenv(dotenv_path=".env")
 
+
 @asynccontextmanager
-async def lifespan(app:FastAPI):
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+async def lifespan(app: FastAPI):
+    # 테이블 생성은 alembic이 담당 (create_all 안 씀)
+
+    # 시드 — seed.py 만들면 아래 주석 해제
+    # from app.db.database import AsyncSessionLocal
+    # from app.db.seed import run_all_seeds
     # async with AsyncSessionLocal() as session:
     #     async with session.begin():
     #         await run_all_seeds(session)
+
     yield
     await async_engine.dispose()
 
-app=FastAPI(lifespan=lifespan)
 
-# app.add_middleware(RefreshTokenMiddleware)
+app = FastAPI(lifespan=lifespan)
 
-# 요청 허용 관련 설정
+# CORS — 키오스크 프론트(React/Vite) 주소. 실제 포트에 맞게 조정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:4173",
+    ],
     allow_origin_regex=r"https://.*\.ngrok-free\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# app.include_router(attendance_router)
-# app.include_router(category_router)
-# app.include_router(cloth_router)
-# app.include_router(friend_router)
-# app.include_router(friend_todo_view_router)
-# app.include_router(friend_router)
-# app.include_router(img_router)
-# app.include_router(music_router)
-# app.include_router(notification_router)
-# app.include_router(pw_history_router)
-# app.include_router(report_router)
-# app.include_router(todo_router)
-# app.include_router(user_router)
+# 라우터 등록
+app.include_router(categories_router)
+app.include_router(menus_router)
+app.include_router(voice_router)
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8081, reload=True,
-                proxy_headers=True, forwarded_allow_ips="*")
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8081,          # AI 서버가 8000이면 충돌 피해서 8081
+        reload=True,
+        proxy_headers=True,
+        forwarded_allow_ips="*",
+    )
