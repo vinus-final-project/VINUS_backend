@@ -1,14 +1,14 @@
 from pydantic import BaseModel
 from typing import Optional
 
-class SchemeMenuAllergyBase(BaseModel):
+class SchemeMenuAllergiesBase(BaseModel):
     m_id: int
     a_id: int
 
-class SchemeMenuAllergyCreate(SchemeMenuAllergyBase):
+class SchemeMenuAllergiesCreate(SchemeMenuAllergiesBase):
     pass
 
-class SchemeMenuAllergyResponse(SchemeMenuAllergyBase):
+class SchemeMenuAllergiesResponse(SchemeMenuAllergiesBase):
     m_a_id: int
 
     class Config:

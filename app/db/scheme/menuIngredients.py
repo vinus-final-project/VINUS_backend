@@ -1,14 +1,14 @@
 from pydantic import BaseModel
 from typing import Optional
 
-class SchemeMenuIngredientBase(BaseModel):
+class SchemeMenuIngredientsBase(BaseModel):
     m_id: int
     i_id: int
 
-class SchemeMenuIngredientCreate(SchemeMenuIngredientBase):
+class SchemeMenuIngredientsCreate(SchemeMenuIngredientsBase):
     pass
 
-class SchemeMenuIngredientResponse(SchemeMenuIngredientBase):
+class SchemeMenuIngredientsResponse(SchemeMenuIngredientsBase):
     m_i_id: int
 
     class Config:

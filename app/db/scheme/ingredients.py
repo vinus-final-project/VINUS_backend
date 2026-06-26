@@ -1,13 +1,13 @@
 from pydantic import BaseModel
 from typing import Optional
 
-class SchemeIngredientBase(BaseModel):
+class SchemeIngredientsBase(BaseModel):
     i_name: str
 
-class SchemeIngredientCreate(SchemeIngredientBase):
+class SchemeIngredientsCreate(SchemeIngredientsBase):
     pass
 
-class SchemeIngredientResponse(SchemeIngredientBase):
+class SchemeIngredientsResponse(SchemeIngredientsBase):
     i_id: int
 
     class Config:

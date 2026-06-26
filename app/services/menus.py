@@ -2,11 +2,11 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.crud.menus import CrudMenus
 
-class ServiceMenus:
+class ServicesMenus:
     @staticmethod
-    async def get_menu_list_by_category(c_id: int, db: AsyncSession):
+    async def get_menus_list_by_category(c_id: int, db: AsyncSession):
         # [메뉴 조회 API]
-        db_menus = await CrudMenus.get_menus_by_category(db, category_id=c_id)
+        db_menus = await CrudMenus.get_menus_by_category(db, c_id=c_id)
         
         response_menus = []
         for m in db_menus:
@@ -23,7 +23,7 @@ class ServiceMenus:
     @staticmethod
     async def get_single_menu_detail(m_id: int, db: AsyncSession):
         # [메뉴 상세 조회 API]
-        db_menu = await CrudMenus.get_menu_detail(db, menu_id=m_id)
+        db_menu = await CrudMenus.get_menu_detail(db, m_id=m_id)
         
         if not db_menu:
             raise HTTPException(
@@ -64,7 +64,7 @@ class ServiceMenus:
                             "op_id": op.op_id,
                             "op_name": op.op_name,
                             "op_price": op.op_price,
-                            "og_id": op.og_id  # 옵션 테이블 안의 외래키 변수명
+                            "og_id": op.og_id
                         })
                 
                 option_groups_list.append({

@@ -1,32 +1,35 @@
+from unittest import result
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload
 from app.db.models.menus import ModelsMenus
+from app.db.models.menuAllergies import ModelsMenuAllergy
+from app.db.models.menuIngredients import ModelsMenuIngredient
+from app.db.models.optionGroups import ModelsOptionGroups
 
 class CrudMenus:
     @staticmethod
-    async def get_menus_by_category(db: AsyncSession, category_id: int):
+    async def get_menus_by_category(db: AsyncSession, c_id: int):
         # [수정] 모델 변수명 규칙에 맞춰서 category_id ➔ c_id로 변경했습니다.
         query = (
             select(ModelsMenus)
-            .options(joinedload(ModelsMenus.sold_outs))
-            .where(ModelsMenus.c_id == category_id)  
+            # .options(joinedload(ModelsMenus.sold_outs)) 이거 품절테이블 빼서 같이 뺍니다 거기에 조인로드도 안써서 임포트 같이 뻅니다
+            .where(ModelsMenus.c_id == c_id)
         )
         result = await db.execute(query)
         return result.scalars().all()
-
-    @staticmethod
-    async def get_menu_detail(db: AsyncSession, menu_id: int):
-        # [추가] 상세 페이지용 복잡한 조인(알레르기, 성분, 옵션)들을 여기서 한 번에 처리합니다.
-        # [수정] 모델 변수명 규칙에 맞춰서 menu_id ➔ m_id로 매칭했습니다.
+    
+    @staticmethod # services/Menus.py에서 get_single_menu_detail에서 호출하는데 여기에 없어서 추가함
+    async def get_menu_detail(db: AsyncSession, m_id: int):
         query = (
             select(ModelsMenus)
             .options(
-                joinedload(ModelsMenus.menu_allergies).joinedload(ModelsMenus.menu_allergies.allergy),
-                joinedload(ModelsMenus.menu_ingredients).joinedload(ModelsMenus.menu_ingredients.ingredient),
-                joinedload(ModelsMenus.option_groups).joinedload(ModelsMenus.option_groups.options)
+            joinedload(ModelsMenus.menu_allergies).joinedload(ModelsMenuAllergy.allergy),
+            joinedload(ModelsMenus.menu_ingredients).joinedload(ModelsMenuIngredient.ingredient),
+            joinedload(ModelsMenus.option_groups).joinedload(ModelsOptionGroups.options),
             )
-            .where(ModelsMenus.m_id == menu_id)  
+            .where(ModelsMenus.m_id == m_id)
         )
         result = await db.execute(query)
-        return result.scalars().first()  # 단건 조회의 경우 .first()를 사용합니다.
+        return result.scalars().first()

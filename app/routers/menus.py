@@ -10,7 +10,7 @@ router = APIRouter(prefix="/menus", tags=["Menus"])
 
 @router.get("", response_model=RoutersMenuListResponse, status_code=status.HTTP_200_OK)
 async def read_menus(c_id: int, db: AsyncSession = Depends(get_db)):
-    return await ServicesMenus.get_menu_list_by_category(c_id, db)
+    return await ServicesMenus.get_menus_list_by_category(c_id, db)
 
 @router.get("/{m_id}", response_model=RoutersMenuDetailResponse, status_code=status.HTTP_200_OK)
 async def read_menu_detail(m_id: int, db: AsyncSession = Depends(get_db)):
