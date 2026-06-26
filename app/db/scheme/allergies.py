@@ -4,10 +4,10 @@ from typing import Optional
 class SchemeAllergiesBase(BaseModel):
     a_name: str
 
-class SchemeAllergyCreate(SchemeAllergiesBase):
+class SchemeAllergiesCreate(SchemeAllergiesBase):
     pass
 
-class SchemeAllergyResponse(SchemeAllergiesBase):
+class SchemeAllergiesResponse(SchemeAllergiesBase):
     a_id: int
 
     model_config = ConfigDict(from_attributes=True)
