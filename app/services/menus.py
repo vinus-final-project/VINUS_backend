@@ -64,7 +64,7 @@ class ServicesMenus:
                             "op_id": op.op_id,
                             "op_name": op.op_name,
                             "op_price": op.op_price,
-                            "og_id": op.og_id  # 옵션 테이블 안의 외래키 변수명
+                            "og_id": op.og_id
                         })
                 
                 option_groups_list.append({
