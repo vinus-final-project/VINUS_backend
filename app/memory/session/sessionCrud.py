@@ -1,0 +1,111 @@
+"""SessionCrud : 세션 메모리 CRUD.
+
+- SessionMemory(Map 저장소) 와 Session 객체에 대한 모든 CRUD 진입점
+- Session 자체(생성/조회/수정/삭제) 와
+  Session 내부 데이터(cart_item, log) 의 CRUD 를 모두 담당
+- Controller / EventExecutor 등이 본 클래스의 정적 메서드를 호출
+
+함수명 규칙 : `행위명_대상_폴더명(session)_파일명(sessionCrud)`
+              파일명은 카멜케이스 그대로 사용.
+메서드 순서 : C → R → U → D
+"""
+
+from typing import List, Optional
+
+from app.memory.session.enums import OrderItemStatus, SpeakerType
+from app.memory.session.cartItem import CartItem
+from app.memory.session.orderItem import OrderItem
+from app.memory.session.session import Log, Session
+from app.memory.session.sessionMemory import SessionMemory
+
+
+class SessionCrud:
+    # -- 함수 정의 (CRUD: C → R → U → D) ------------------------------------
+
+    # C - 새 Session 생성 후 메모리에 등록
+    @staticmethod
+    async def create_session_session_sessionCrud() -> Session:
+        new_session_id = await SessionMemory.create_id_session_sessionMemory()
+        new_session = Session(session_id=new_session_id)
+        SessionMemory.sessions[new_session_id] = new_session
+        return new_session
+
+    # C - 카트에 주문 항목 추가
+    #     카트 저장 규칙
+    #       1) status == COMPLETE 일 때만 추가 가능
+    #       2) 동일 메뉴 + 동일 옵션 → 기존 CartItem 의 quantity 증가
+    #       3) 동일 메뉴 + 다른 옵션 → 신규 CartItem 생성
+    @staticmethod
+    async def create_cart_item_session_sessionCrud(
+        session: Session,
+        pending_item: OrderItem,
+    ) -> None:
+        # 1) COMPLETE 가 아니면 카트 추가 차단
+        if pending_item.status != OrderItemStatus.COMPLETE:
+            raise ValueError(
+                "order_item.status 가 COMPLETE 일 때만 cart 에 추가할 수 있습니다."
+            )
+
+        # 2) 동일 메뉴 + 동일 옵션이면 수량만 누적
+        for cart_item in session.cart:
+            if (
+                cart_item.menu_id == pending_item.menu_id
+                and cart_item.selected_options == pending_item.selected_options
+            ):
+                cart_item.quantity += pending_item.quantity
+                return
+
+        # 3) 그 외에는 신규 CartItem 생성
+        session.cart.append(
+            CartItem(
+                cart_item_id=session._next_cart_item_id,
+                menu_id=pending_item.menu_id,
+                quantity=pending_item.quantity,
+                selected_options=pending_item.selected_options,
+            )
+        )
+        session._next_cart_item_id += 1
+
+    # C - 세션 로그 한 줄 추가
+    @staticmethod
+    async def create_log_session_sessionCrud(
+        session: Session,
+        speaker: SpeakerType,
+        message: str,
+        intent: Optional[str] = None,
+    ) -> None:
+        session.logs.append(Log(speaker=speaker, message=message, intent=intent))
+
+    # R - Session 개별 조회 (없으면 KeyError)
+    @staticmethod
+    async def get_session_session_sessionCrud(session_id: str) -> Session:
+        if session_id not in SessionMemory.sessions:
+            raise KeyError(f"Session not found: {session_id}")
+        return SessionMemory.sessions[session_id]
+
+    # R - Session 전체 조회 (디버그/관리 용도)
+    @staticmethod
+    async def get_all_session_session_sessionCrud() -> List[Session]:
+        return list(SessionMemory.sessions.values())
+
+    # R - Session 존재 여부 확인
+    @staticmethod
+    async def exists_session_session_sessionCrud(session_id: str) -> bool:
+        return session_id in SessionMemory.sessions
+
+    # U - Session 갱신 (in-memory 이므로 사실상 참조 갱신/덮어쓰기)
+    @staticmethod
+    async def update_session_session_sessionCrud(session: Session) -> Session:
+        SessionMemory.sessions[session.session_id] = session
+        return session
+
+    # D - Session 개별 삭제 (없으면 무시)
+    @staticmethod
+    async def delete_session_session_sessionCrud(session_id: str) -> None:
+        SessionMemory.sessions.pop(session_id, None)
+
+    # D - 전체 Session 초기화 (테스트/디버그 전용)
+    @staticmethod
+    async def delete_all_session_session_sessionCrud() -> None:
+        SessionMemory.next_session_id = 1
+        SessionMemory.sessions.clear()
