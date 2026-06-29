@@ -27,6 +27,7 @@ from app.db.models.sessions import ModelsSessions
 from app.routers.categories import router as categories_router
 from app.routers.menus import router as menus_router
 from app.routers.voice import router as voice_router
+from app.routers import paymentRouter
 
 
 load_dotenv(dotenv_path=".env")
@@ -69,6 +70,7 @@ app.add_middleware(
 app.include_router(categories_router)
 app.include_router(menus_router)
 app.include_router(voice_router)
+app.include_router(paymentRouter.router)
 
 if __name__ == "__main__":
     uvicorn.run(

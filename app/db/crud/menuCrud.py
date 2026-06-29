@@ -8,7 +8,7 @@ from app.db.models.optionGroups import ModelsOptionGroups
 
 class CrudMenus:
     @staticmethod
-    async def get_menus_by_category(db: AsyncSession, c_id: int):
+    async def get_menus_by_category_crud_menuCrud(db: AsyncSession, c_id: int):
         # [수정] 모델 변수명 규칙에 맞춰서 category_id ➔ c_id로 변경했습니다.
         query = (
             select(ModelsMenus)
