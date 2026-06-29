@@ -3,6 +3,7 @@ from sqlalchemy.future import select
 from app.db.models.orders import ModelsOrders
 
 class CrudPaymentCrud:
+    """결제 관련 DB 조작"""
 
     @staticmethod
     async def get_crud_paymentCrud(db: AsyncSession, od_id: int):
