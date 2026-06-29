@@ -35,7 +35,6 @@ load_dotenv(dotenv_path=".env")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 테이블 생성은 alembic이 담당 (create_all 안 씀)
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
