@@ -9,5 +9,5 @@ router = APIRouter(prefix="/voices", tags=["Voices"])
 
 
 @router.get("/{v_code}", response_model=SchemeVoiceRead, status_code=status.HTTP_200_OK)
-async def read_voice(v_code: str, db: AsyncSession = Depends(get_db)):
-    return await ServicesVoice.get_voice_by_code(v_code, db)
+async def read_voice_routers_voice(v_code: str, db: AsyncSession = Depends(get_db)):
+    return await ServicesVoice.get_voice_by_code_crud_voice(db, v_code)

@@ -6,8 +6,8 @@ from app.db.crud.voice import CrudVoice
 
 class ServicesVoice:
     @staticmethod
-    async def get_voice_by_code(v_code: str, db: AsyncSession):
-        db_voice = await CrudVoice.get_voice_by_code(db, v_code=v_code)
+    async def get_voice_by_code_services_voice(v_code: str, db: AsyncSession):
+        db_voice = await CrudVoice.get_voice_by_code_crud_voice(db, v_code=v_code)
 
         if not db_voice:
             raise HTTPException(

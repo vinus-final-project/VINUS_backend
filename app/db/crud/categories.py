@@ -4,7 +4,7 @@ from app.db.models.categories import ModelsCategories
 
 class CrudCategories:
     @staticmethod
-    async def get_all_categories(db: AsyncSession):
+    async def get_all_categories_crud_categories(db: AsyncSession):
         # 모든 카테고리 리스트를 조회합니다.
         query = select(ModelsCategories)
         result = await db.execute(query)

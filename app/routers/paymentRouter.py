@@ -17,7 +17,7 @@ class PaymentResultResponse(BaseModel):
 
 
 @router.post("/result")
-async def payment_result(
+async def payment_result_routers_paymentRouter(
     payment_data: PaymentResultRequest,
     db: AsyncSession = Depends(get_db)
 ) -> PaymentResultResponse:
@@ -37,7 +37,7 @@ async def payment_result(
     """
     
     # 1. 세션 ID로 주문 찾기
-    order = await PaymentCrud.get_order_by_session_id(db, payment_data.session_id)
+    order = await PaymentCrud.get_order_by_session_id_crud_paymentCrud(db, payment_data.session_id)
     
     if not order:
         raise HTTPException(
