@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, ForeignKey
 from app.db.database import Base
 from sqlalchemy.orm import relationship
 
-class ModelsOrderMenuOptions(Base):
+class OrderMenuOptions(Base):
     __tablename__ = "orderMenuOptions"
 
     # 변수 선언

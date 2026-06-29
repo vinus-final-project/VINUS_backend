@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.menus import ServicesMenus
+from app.services.menus import Menus
 from app.memory.session.enums import OrderItemStatus
 from app.memory.session.orderItem import OrderItem
 from app.memory.session.session import Session
@@ -37,7 +37,7 @@ class OrderController:
             raise ValueError("OrderItem already exists.")
 
         # 메뉴 조회 (존재 확인 + 필수옵션 유무 판단)
-        menu = await ServicesMenus.get_single_menu_detail_services_menus(
+        menu = await Menus.get_single_menu_detail_services_menus(
             db=db,
             m_id=menu_id,
         )
@@ -74,7 +74,7 @@ class OrderController:
         if session.order_item is None:
             raise ValueError("OrderItem not found.")
 
-        menu = await ServicesMenus.get_single_menu_detail_services_menus(
+        menu = await Menus.get_single_menu_detail_services_menus(
             db=db,
             m_id=session.order_item.menu_id,
         )
@@ -146,7 +146,7 @@ class OrderController:
         if session.order_item.status != OrderItemStatus.ASKING_OPTIONAL_OPTION:
             raise ValueError("Invalid order item state.")
 
-        menu = await ServicesMenus.get_single_menu_detail_services_menus(
+        menu = await Menus.get_single_menu_detail_services_menus(
             db=db,
             m_id=session.order_item.menu_id,
         )
@@ -183,7 +183,7 @@ class OrderController:
         if session.order_item is None:
             raise ValueError("OrderItem not found.")
 
-        menu = await ServicesMenus.get_single_menu_detail_services_menus(
+        menu = await Menus.get_single_menu_detail_services_menus(
             db=db,
             m_id=session.order_item.menu_id,
         )

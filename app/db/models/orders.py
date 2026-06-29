@@ -13,7 +13,7 @@ class OdState(enum.Enum):
     REFUNDED = "REFUNDED"
 
 
-class ModelsOrders(Base):
+class Orders(Base):
     __tablename__ = "orders"
 
     # 변수 선언

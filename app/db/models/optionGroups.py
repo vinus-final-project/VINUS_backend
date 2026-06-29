@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from app.db.database import Base
 
 
-class ModelsOptionGroups(Base):
+class OptionGroups(Base):
     __tablename__ = "optionGroups"
 
     # 변수 선언

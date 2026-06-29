@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.db.database import Base
 
-class ModelsOptions(Base):
+class Options(Base):
     __tablename__ = "options"
 
     # 변수 선언

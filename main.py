@@ -7,27 +7,27 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.database import Base, async_engine
 
-from app.db.models.allergies import ModelsAllergies
-from app.db.models.categories import ModelsCategories
-from app.db.models.ingredients import ModelsIngredients
-from app.db.models.menuAllergies import ModelsMenuAllergies
-from app.db.models.menuIngredients import ModelsMenuIngredients
-from app.db.models.menus import ModelsMenus
-from app.db.models.optionGroups import ModelsOptionGroups
-from app.db.models.options import ModelsOptions
-from app.db.models.orders import ModelsOrders
-from app.db.models.orderMenus import ModelsOrderMenus
-from app.db.models.orderMenuOptions import ModelsOrderMenuOptions
-from app.db.models.voice import ModelsVoice
-from app.db.models.sessionLogs import ModelsSessionLogs
-from app.db.models.sessions import ModelsSessions
+from app.db.models.allergies import Allergies
+from app.db.models.categories import Categories
+from app.db.models.ingredients import Ingredients
+from app.db.models.menuAllergies import MenuAllergies
+from app.db.models.menuIngredients import MenuIngredients
+from app.db.models.menus import Menus
+from app.db.models.optionGroups import OptionGroups
+from app.db.models.options import Options
+from app.db.models.orders import Orders
+from app.db.models.orderMenus import OrderMenus
+from app.db.models.orderMenuOptions import OrderMenuOptions
+from app.db.models.voice import Voice
+from app.db.models.sessionLogs import SessionLogs
+from app.db.models.sessions import Sessions
 
 
 
 from app.routers.categories import router as categories_router
 from app.routers.menus import router as menus_router
 from app.routers.voice import router as voice_router
-from app.routers import paymentRouter
+from app.routers import payment as payment_router
 
 
 load_dotenv(dotenv_path=".env")
@@ -70,7 +70,7 @@ app.add_middleware(
 app.include_router(categories_router)
 app.include_router(menus_router)
 app.include_router(voice_router)
-app.include_router(paymentRouter.router)
+app.include_router(payment_router)
 
 if __name__ == "__main__":
     uvicorn.run(

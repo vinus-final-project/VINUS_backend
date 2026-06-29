@@ -3,7 +3,7 @@ from app.db.database import Base
 from sqlalchemy.orm import relationship
 
 
-class ModelsAllergies(Base):
+class Allergies(Base):
     __tablename__ = "allergies"
 
     # 변수 설정

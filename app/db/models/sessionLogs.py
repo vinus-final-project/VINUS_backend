@@ -14,7 +14,7 @@ class SpeakerType(enum.Enum):
     USER = "USER"
 
 
-class ModelsSessionLogs(Base):
+class SessionLogs(Base):
     __tablename__ = "sessionLogs"
 
     # 변수 선언

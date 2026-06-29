@@ -20,7 +20,7 @@ class SeCarry(enum.Enum):
     TAKEOUT = "TAKEOUT"
 
 
-class ModelsSessions(Base):
+class Sessions(Base):
     __tablename__ = "sessions"
 
     # 변수 선언
