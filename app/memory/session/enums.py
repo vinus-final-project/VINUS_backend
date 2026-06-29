@@ -25,9 +25,10 @@ class SessionStatus(str, Enum):
 
 # 현재 작성 중인 주문 항목(OrderItem)의 상태
 class OrderItemStatus(str, Enum):
-    SELECTING_REQUIRED_OPTION = "SELECTING_REQUIRED_OPTION"  # 필수 옵션 선택 중
-    ASKING_OPTIONAL_OPTION = "ASKING_OPTIONAL_OPTION"        # 추가 옵션 확인 중
-    COMPLETE = "COMPLETE"                                    # 작성 완료
+    SELECTING_REQUIRED_OPTION = "SELECTING_REQUIRED_OPTION"
+    SELECTING_QUANTITY = "SELECTING_QUANTITY"
+    ASKING_OPTIONAL_OPTION = "ASKING_OPTIONAL_OPTION"
+    COMPLETE = "COMPLETE"                                  # 작성 완료
 
 
 # 로그 발화 주체

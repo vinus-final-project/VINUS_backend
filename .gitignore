@@ -44,3 +44,7 @@ Thumbs.db
 .ruff_cache/
 .coverage
 htmlcov/
+
+# MD파일
+AGENTS.md
+CLAUDE.md

@@ -11,12 +11,16 @@
 """
 
 from typing import List, Optional
+from uuid import uuid4
 
-from app.memory.session.enums import OrderItemStatus, SpeakerType
+from app.memory.session.enums import OrderItemStatus, SpeakerType, SessionStatus
 from app.memory.session.cartItem import CartItem
 from app.memory.session.orderItem import OrderItem
 from app.memory.session.session import Log, Session
 from app.memory.session.sessionMemory import SessionMemory
+
+
+
 
 
 class SessionCrud:
@@ -25,7 +29,11 @@ class SessionCrud:
     # C - 새 Session 생성 후 메모리에 등록
     @staticmethod
     async def create_session_session_sessionCrud() -> Session:
-        new_session_id = await SessionMemory.create_id_session_sessionMemory()
+        new_session_id = str(uuid4())
+
+        while new_session_id in SessionMemory.sessions:
+            new_session_id = str(uuid4())
+
         new_session = Session(session_id=new_session_id)
         SessionMemory.sessions[new_session_id] = new_session
         return new_session
@@ -36,7 +44,7 @@ class SessionCrud:
     #       2) 동일 메뉴 + 동일 옵션 → 기존 CartItem 의 quantity 증가
     #       3) 동일 메뉴 + 다른 옵션 → 신규 CartItem 생성
     @staticmethod
-    async def create_cart_item_session_sessionCrud(
+    async def add_cart_item_session_sessionCrud(
         session: Session,
         pending_item: OrderItem,
     ) -> None:
@@ -61,7 +69,7 @@ class SessionCrud:
                 cart_item_id=session._next_cart_item_id,
                 menu_id=pending_item.menu_id,
                 quantity=pending_item.quantity,
-                selected_options=pending_item.selected_options,
+                selected_options=pending_item.selected_options.copy(),
             )
         )
         session._next_cart_item_id += 1
@@ -99,6 +107,13 @@ class SessionCrud:
         SessionMemory.sessions[session.session_id] = session
         return session
 
+        # U - Session 만료 처리
+    @staticmethod
+    async def expire_session_session_sessionCrud(session: Session) -> Session:
+        session.session_status = SessionStatus.EXPIRED
+        return session
+
+
     # D - Session 개별 삭제 (없으면 무시)
     @staticmethod
     async def delete_session_session_sessionCrud(session_id: str) -> None:
@@ -107,5 +122,4 @@ class SessionCrud:
     # D - 전체 Session 초기화 (테스트/디버그 전용)
     @staticmethod
     async def delete_all_session_session_sessionCrud() -> None:
-        SessionMemory.next_session_id = 1
         SessionMemory.sessions.clear()

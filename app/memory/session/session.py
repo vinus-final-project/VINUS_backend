@@ -35,18 +35,18 @@ class Log(BaseModel):
 # ---------------------------------------------------------------------------
 class Session(BaseModel):
     # -- 변수 선언 ----------------------------------------------------------
-    session_id: str                                             # 세션 식별자 (SE-000001)
+    session_id: str                                             # 세션 식별자 UUID
     created_at: datetime = Field(default_factory=datetime.now)  # 세션 생성 시간
     session_status : SessionStatus = SessionStatus.ACTIVE       # 세션 생명주기 (ACTIVE/COMPLETED/EXPIRED/CANCELED)
 
     fsm_state: FSMState = FSMState.INIT                # 현재 FSM 상태
     order_type: Optional[OrderType] = None             # 매장/포장 (선택 전엔 None)
     order_item: Optional[OrderItem] = None             # 현재 작성 중인 주문 항목
-    cart: List[CartItem] = Field(default_factory=list) # 장바구니
-    last_recommendation: Optional[int] = None          # 마지막 추천 메뉴(menu_id)
-    logs: List[Log] = Field(default_factory=list)      # 세션 로그 버퍼
-    response_text: Optional[str] = None                # 사용자에게 보여줄 응답 텍스트(TTS와 동일)
+    cart: list[CartItem] = Field(default_factory=list) # 장바구니
+    recommendation_list: list[int] = Field(default_factory=list)   # 추천 메뉴 리스트
+    logs: list[Log] = Field(default_factory=list)      # 세션 로그 버퍼
+    message: Optional[str] = None                # 사용자에게 보여줄 응답 텍스트(TTS와 동일)
 
     # 카트 아이템 ID 자동 증가용 내부 카운터 (sessionCrud 에서 사용, 직렬화 대상 아님)
     # PrivateAttr 은 이름이 underscore 로 시작해야 합니다.
-    _next_cart_item_id: int = PrivateAttr(default=1)
+    _next_cart_item_id: int = PrivateAttr(default=1) # 세션 내부 임시 ID
