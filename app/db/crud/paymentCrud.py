@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.db.models.orders import ModelsOrders
+from app.db.models.orders import ModelsOrders, OdState
 
 class CrudPaymentCrud:
     """결제 관련 DB 조작"""
@@ -12,7 +13,7 @@ class CrudPaymentCrud:
         return result.scalars().first()
 
     @staticmethod
-    async def update_crud_paymentCrud(db: AsyncSession, od_id: int, od_state: str):
+    async def update_crud_paymentCrud(db: AsyncSession, od_id: int, od_state: OdState):
         query = select(ModelsOrders).where(ModelsOrders.od_id == od_id)
         result = await db.execute(query)
         order = result.scalars().first()
