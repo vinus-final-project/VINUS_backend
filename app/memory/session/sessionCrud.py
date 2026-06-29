@@ -13,14 +13,15 @@
 from typing import List, Optional
 from uuid import uuid4
 
-from app.memory.session.enums import OrderItemStatus, SpeakerType, SessionStatus
+from app.memory.session.enums import (
+    OrderItemStatus,
+    SpeakerType,
+    SessionStatus,
+)
 from app.memory.session.cartItem import CartItem
 from app.memory.session.orderItem import OrderItem
 from app.memory.session.session import Log, Session
 from app.memory.session.sessionMemory import SessionMemory
-
-
-
 
 
 class SessionCrud:
@@ -82,13 +83,22 @@ class SessionCrud:
         message: str,
         intent: Optional[str] = None,
     ) -> None:
-        session.logs.append(Log(speaker=speaker, message=message, intent=intent))
+        session.logs.append(
+            Log(
+                speaker=speaker,
+                message=message,
+                intent=intent,
+            )
+        )
 
     # R - Session 개별 조회 (없으면 KeyError)
     @staticmethod
-    async def get_session_session_sessionCrud(session_id: str) -> Session:
+    async def get_session_session_sessionCrud(
+        session_id: str,
+    ) -> Session:
         if session_id not in SessionMemory.sessions:
             raise KeyError(f"Session not found: {session_id}")
+
         return SessionMemory.sessions[session_id]
 
     # R - Session 전체 조회 (디버그/관리 용도)
@@ -98,28 +108,57 @@ class SessionCrud:
 
     # R - Session 존재 여부 확인
     @staticmethod
-    async def exists_session_session_sessionCrud(session_id: str) -> bool:
+    async def exists_session_session_sessionCrud(
+        session_id: str,
+    ) -> bool:
         return session_id in SessionMemory.sessions
 
     # U - Session 갱신 (in-memory 이므로 사실상 참조 갱신/덮어쓰기)
     @staticmethod
-    async def update_session_session_sessionCrud(session: Session) -> Session:
+    async def update_session_session_sessionCrud(
+        session: Session,
+    ) -> Session:
         SessionMemory.sessions[session.session_id] = session
         return session
 
-        # U - Session 만료 처리
+    # U - Session 만료 처리
     @staticmethod
-    async def expire_session_session_sessionCrud(session: Session) -> Session:
+    async def expire_session_session_sessionCrud(
+        session: Session,
+    ) -> Session:
         session.session_status = SessionStatus.EXPIRED
         return session
 
+    # D - CartItem 삭제
+    @staticmethod
+    async def remove_cart_item_session_sessionCrud(
+        session: Session,
+        cart_item_id: int,
+    ) -> None:
+        for cart_item in session.cart:
+            if cart_item.cart_item_id == cart_item_id:
+                session.cart.remove(cart_item)
+                return
+
+        raise ValueError(
+            f"CartItem not found: {cart_item_id}"
+        )
+
+    # D - Cart 전체 삭제
+    @staticmethod
+    async def clear_cart_session_sessionCrud(
+        session: Session,
+    ) -> None:
+        session.cart.clear()
 
     # D - Session 개별 삭제 (없으면 무시)
     @staticmethod
-    async def delete_session_session_sessionCrud(session_id: str) -> None:
+    async def delete_session_session_sessionCrud(
+        session_id: str,
+    ) -> None:
         SessionMemory.sessions.pop(session_id, None)
 
     # D - 전체 Session 초기화 (테스트/디버그 전용)
     @staticmethod
-    async def delete_all_session_session_sessionCrud() -> None:
+    async def delete_all_session_sessionCrud() -> None:
         SessionMemory.sessions.clear()

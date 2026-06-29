@@ -15,4 +15,4 @@ class RoutersCategoriesListResponse(BaseModel):
 @router.get("", response_model=RoutersCategoriesListResponse, status_code=status.HTTP_200_OK)
 async def read_categories_routers_categories(db: AsyncSession = Depends(get_db)):
     # 서비스를 호출해서 결과만 깔끔하게 넘겨받음!
-    return await ServicesCategories.get_category_list(db)
+    return await ServicesCategories.get_category_list_services_categories(db)

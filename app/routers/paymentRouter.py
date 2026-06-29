@@ -48,9 +48,9 @@ async def payment_result_routers_paymentRouter(
     # 2. 결제 상태에 따라 주문 상태 업데이트
     if payment_data.payment_status.lower() == "success":
         # 결제 성공 → paid
-        await PaymentCrud.update_order_status(db, order.od_id, "paid")
+        await PaymentCrud.update_order_status_crud_paymentCrud(db, order.od_id, "paid")
         return PaymentResultResponse(success=True)
     else:
         # 결제 실패 → cancelled
-        await PaymentCrud.update_order_status(db, order.od_id, "cancelled")
+        await PaymentCrud.update_order_status_crud_paymentCrud(db, order.od_id, "cancelled")
         return PaymentResultResponse(success=False)
