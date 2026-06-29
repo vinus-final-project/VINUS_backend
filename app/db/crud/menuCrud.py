@@ -19,7 +19,7 @@ class CrudMenus:
         return result.scalars().all()
     
     @staticmethod # services/Menus.py에서 get_single_menu_detail에서 호출하는데 여기에 없어서 추가함
-    async def get_menu_detail(db: AsyncSession, m_id: int):
+    async def get_menu_detail_crud_menuCrud(db: AsyncSession, m_id: int):
         query = (
             select(ModelsMenus)
             .options(

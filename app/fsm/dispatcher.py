@@ -20,7 +20,7 @@ from app.memory.session.session import Session
 class Dispatcher:
 
     @staticmethod
-    async def dispatch(
+    async def dispatch_fsm_dispatcher(
         session: Optional[Session],
         event: Event,
     ) -> Optional[Session]:

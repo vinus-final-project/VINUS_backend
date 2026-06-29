@@ -10,7 +10,7 @@ class SystemController:
     # ------------------------------------------------------------------
 
     @staticmethod
-    async def create_session(
+    async def create_session_controllers_systemController(
         order_type: OrderType,
     ) -> Session:
         """새 Session 생성"""
@@ -25,7 +25,7 @@ class SystemController:
     
 
     @staticmethod
-    async def complete_session(
+    async def complete_session_controllers_systemController(
         session: Session,
     ) -> None:
         """Session 완료"""
@@ -37,7 +37,7 @@ class SystemController:
 
 
     @staticmethod
-    async def cancel_session(
+    async def cancel_session_controllers_systemController(
         session: Session,
     ) -> None:
         """Session 취소"""
@@ -48,7 +48,7 @@ class SystemController:
 
 
     @staticmethod
-    async def expire_session(
+    async def expire_session_controllers_systemController(
         session: Session,
     ) -> None:
         """Session 만료"""

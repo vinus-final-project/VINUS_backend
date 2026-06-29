@@ -16,7 +16,7 @@ from app.memory.session.session import Session
 class Validator:
 
     @staticmethod
-    def validate(
+    def validate_fsm_validator(
         session: Session,
         event: Event,
     ) -> None:

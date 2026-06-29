@@ -4,16 +4,17 @@
 status 가 COMPLETE 가 되어야만 cart 로 옮길 수 있습니다.
 """
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field
 
 from app.memory.session.enums import OrderItemStatus
 
 
+
 class OrderItem(BaseModel):
     # -- 변수 선언 ----------------------------------------------------------
     menu_id: int                                                    # 메뉴 ID
-    quantity: int = Field(default=1, ge=1)                                              # 주문 수량
-    selected_options: Dict[int, int] = Field(default_factory=dict)  # 선택된 옵션
+    quantity: Optional[int] = None                                            # 주문 수량
+    selected_options: Dict[int,  list[int]] = Field(default_factory=dict)  # 선택된 옵션
     status: OrderItemStatus = OrderItemStatus.SELECTING_REQUIRED_OPTION  # 작성 상태
