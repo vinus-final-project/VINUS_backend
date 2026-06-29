@@ -12,6 +12,6 @@ class OrderMenus(Base):
     o_m_qty = Column(Integer, default=1)
 
     #관계 설정
-    order = relationship("ModelsOrders", back_populates="order_menus")
-    menu = relationship("ModelsMenus", back_populates="order_menus")
-    order_menu_options = relationship("ModelsOrderMenuOptions", back_populates="order_menu")
+    order = relationship("Orders", back_populates="order_menus")
+    menu = relationship("Menus", back_populates="order_menus")
+    order_menu_options = relationship("OrderMenuOptions", back_populates="order_menu")

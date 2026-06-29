@@ -22,5 +22,5 @@ class OptionGroups(Base):
 
     #관계 설정
 
-    menu = relationship("ModelsMenus", back_populates="option_groups")
-    options = relationship("ModelsOptions", back_populates="option_group")
+    menu = relationship("Menus", back_populates="option_groups")
+    options = relationship("Options", back_populates="option_group")

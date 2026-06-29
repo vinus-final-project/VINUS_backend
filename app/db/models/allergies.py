@@ -12,4 +12,4 @@ class Allergies(Base):
 
     #관계 설정
 
-    menu_allergies = relationship("ModelsMenuAllergies", back_populates="allergy")
+    menu_allergies = relationship("MenuAllergies", back_populates="allergy")

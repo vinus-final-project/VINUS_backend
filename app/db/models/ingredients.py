@@ -11,4 +11,4 @@ class Ingredients(Base):
 
 
     #관계 설정
-    menu_ingredients = relationship("ModelsMenuIngredients", back_populates="ingredient")
+    menu_ingredients = relationship("MenuIngredients", back_populates="ingredient")

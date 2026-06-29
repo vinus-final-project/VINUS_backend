@@ -23,7 +23,7 @@ class Menus:
         query = (
             select(Menus)
             .options(
-            joinedload(Menus.menu_allergies).joinedload(MenuAllergies.allergy),
+            joinedload(ModelsMenus.menu_allergies).joinedload(MenuAllergies.allergy),
             joinedload(Menus.menu_ingredients).joinedload(MenuIngredients.ingredient),
             joinedload(Menus.option_groups).joinedload(OptionGroups.options),
             )

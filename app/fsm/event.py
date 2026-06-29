@@ -5,7 +5,7 @@ FSM.dispatch()로 전달되는 이벤트입니다.
 """
 
 from enum import Enum
-
+from pydantic import BaseModel, Field
 
 class Event(str, Enum):
     # ------------------------------------------------------------------
@@ -59,3 +59,8 @@ class Event(str, Enum):
     # ------------------------------------------------------------------
     CANCEL_SESSION = "CANCEL_SESSION"
     EXPIRE_SESSION = "EXPIRE_SESSION"
+
+class FSMEvent(BaseModel):
+    """Rule Engine/LLM 이 생성하는 단일 이벤트 (타입 + 파라미터)."""
+    type: Event
+    parameters: dict = Field(default_factory=dict)

@@ -16,5 +16,5 @@ class MenuIngredients(Base):
     )
 
     #관계설정
-    menu = relationship("ModelsMenus", back_populates="menu_ingredients")
-    ingredient = relationship("ModelsIngredients", back_populates="menu_ingredients")
+    menu = relationship("Menus", back_populates="menu_ingredients")
+    ingredient = relationship("Ingredients", back_populates="menu_ingredients")

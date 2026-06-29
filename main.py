@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+
 from app.db.database import Base, async_engine
 
 from app.db.models.allergies import Allergies
@@ -27,7 +28,8 @@ from app.db.models.sessions import Sessions
 from app.routers.categories import router as categories_router
 from app.routers.menus import router as menus_router
 from app.routers.voice import router as voice_router
-from app.routers import payment as payment_router
+from app.routers.payment import router as payment_router
+from app.routers.session import router as session_router
 
 
 load_dotenv(dotenv_path=".env")
@@ -71,6 +73,7 @@ app.include_router(categories_router)
 app.include_router(menus_router)
 app.include_router(voice_router)
 app.include_router(payment_router)
+app.include_router(session_router)
 
 if __name__ == "__main__":
     uvicorn.run(

@@ -11,5 +11,5 @@ class OrderMenuOptions(Base):
     op_id = Column(Integer, ForeignKey("options.op_id"), nullable=False)
 
     #관계 설정
-    order_menu = relationship("ModelsOrderMenus", back_populates="order_menu_options")
-    option = relationship("ModelsOptions", back_populates="order_menu_options")
+    order_menu = relationship("OrderMenus", back_populates="order_menu_options")
+    option = relationship("Options", back_populates="order_menu_options")

@@ -13,7 +13,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, PrivateAttr
 
-from app.fsm.state import FSMState
+from app.fsm.FSMstate import FSMState
 from app.memory.session.cartItem import CartItem
 from app.memory.session.enums import OrderType, SpeakerType, SessionStatus
 from app.memory.session.orderItem import OrderItem

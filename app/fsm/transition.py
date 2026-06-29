@@ -8,7 +8,7 @@ Controller 호출은 dispatcher.py에서 수행합니다.
 """
 
 from app.fsm.event import Event
-from app.fsm.state import FSMState
+from app.fsm.FSMstate import FSMState
 
 
 TRANSITIONS = {

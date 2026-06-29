@@ -19,5 +19,5 @@ class Options(Base):
     )
 
     #관계 설정
-    option_group = relationship("ModelsOptionGroups", back_populates="options")
-    order_menu_options = relationship("ModelsOrderMenuOptions", back_populates="option")
+    option_group = relationship("OptionGroups", back_populates="options")
+    order_menu_options = relationship("OrderMenuOptions", back_populates="option")

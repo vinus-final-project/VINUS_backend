@@ -26,4 +26,4 @@ class SessionLogs(Base):
     sl_created_at = Column(DateTime, nullable=False, default=func.now())
 
     # 관계 설정
-    session = relationship("ModelsSessions", back_populates="session_logs")
+    session = relationship("Sessions", back_populates="session_logs")
