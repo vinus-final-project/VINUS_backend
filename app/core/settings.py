@@ -24,6 +24,9 @@ class CoreSettings(BaseSettings):
     # AI 서버
     ai_server_url: str = Field("http://localhost:8000", alias="AI_SERVER_URL")
 
+    # 토스페이먼츠
+    toss_secret_key: str = Field(..., alias="TOSS_SECRET_KEY")
+    
     # ===== 함수(프로퍼티) 정의 =====
     # DB 접속 정보 (user:password@host:port/name)
     @property
