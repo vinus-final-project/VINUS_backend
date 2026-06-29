@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.crud.menus import CrudMenus
+from app.db.crud.menuCrud import CrudMenus
 
 class ServicesMenus:
     @staticmethod
