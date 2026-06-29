@@ -2,8 +2,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload
 from app.db.models.menus import ModelsMenus
-from app.db.models.menuAllergies import ModelsMenuAllergy
-from app.db.models.menuIngredients import ModelsMenuIngredient
+from app.db.models.menuAllergies import ModelsMenuAllergies
+from app.db.models.menuIngredients import ModelsMenuIngredients
 from app.db.models.optionGroups import ModelsOptionGroups
 
 class CrudMenus:
@@ -23,8 +23,8 @@ class CrudMenus:
         query = (
             select(ModelsMenus)
             .options(
-            joinedload(ModelsMenus.menu_allergies).joinedload(ModelsMenuAllergy.allergy),
-            joinedload(ModelsMenus.menu_ingredients).joinedload(ModelsMenuIngredient.ingredient),
+            joinedload(ModelsMenus.menu_allergies).joinedload(ModelsMenuAllergies.allergy),
+            joinedload(ModelsMenus.menu_ingredients).joinedload(ModelsMenuIngredients.ingredient),
             joinedload(ModelsMenus.option_groups).joinedload(ModelsOptionGroups.options),
             )
             .where(ModelsMenus.m_id == m_id)
