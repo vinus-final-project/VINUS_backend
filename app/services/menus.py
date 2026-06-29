@@ -4,9 +4,9 @@ from app.db.crud.menuCrud import CrudMenus
 
 class ServicesMenus:
     @staticmethod
-    async def get_menus_list_by_category(c_id: int, db: AsyncSession):
+    async def get_menus_list_by_category_services_menus(c_id: int, db: AsyncSession):
         # [메뉴 조회 API]
-        db_menus = await CrudMenus.get_menus_by_category(db, c_id=c_id)
+        db_menus = await CrudMenus.get_menus_by_category_crud_menuCrud(db, c_id=c_id)
         
         response_menus = []
         for m in db_menus:
@@ -21,9 +21,9 @@ class ServicesMenus:
         return {"menus": response_menus}
 
     @staticmethod
-    async def get_single_menu_detail(m_id: int, db: AsyncSession):
+    async def get_single_menu_detail_services_menus(m_id: int, db: AsyncSession):
         # [메뉴 상세 조회 API]
-        db_menu = await CrudMenus.get_menu_detail(db, m_id=m_id)
+        db_menu = await CrudMenus.get_menu_detail_crud_menuCrud(db, m_id=m_id)
         
         if not db_menu:
             raise HTTPException(
