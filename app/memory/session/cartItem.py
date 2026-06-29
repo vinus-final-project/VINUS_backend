@@ -14,4 +14,4 @@ class CartItem(BaseModel):
     cart_item_id: int                                               # 카트 아이템 ID (세션 내 Auto Increment)
     menu_id: int                                                    # 메뉴 ID
     quantity: int =  Field(ge=1)                                    # 주문 수량
-    selected_options: dict[int, int] = Field(default_factory=dict)  # 선택된 옵션
+    selected_options: dict[int, list[int]] = Field(default_factory=dict)  # 선택된 옵션

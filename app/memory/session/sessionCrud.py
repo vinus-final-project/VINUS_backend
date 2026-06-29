@@ -143,6 +143,31 @@ class SessionCrud:
         raise ValueError(
             f"CartItem not found: {cart_item_id}"
         )
+    # U - CartItem 수량 증가 (+1)
+    @staticmethod
+    async def increase_cart_item_quantity_session_sessionCrud(
+        session: Session,
+        cart_item_id: int,
+    ) -> None:
+        for cart_item in session.cart:
+            if cart_item.cart_item_id == cart_item_id:
+                cart_item.quantity += 1
+                return
+        raise ValueError(f"CartItem not found: {cart_item_id}")
+
+    # U - CartItem 수량 감소 (-1, 0이 되면 삭제)
+    @staticmethod
+    async def decrease_cart_item_quantity_session_sessionCrud(
+        session: Session,
+        cart_item_id: int,
+    ) -> None:
+        for cart_item in session.cart:
+            if cart_item.cart_item_id == cart_item_id:
+                cart_item.quantity -= 1
+                if cart_item.quantity <= 0:
+                    session.cart.remove(cart_item)
+                return
+        raise ValueError(f"CartItem not found: {cart_item_id}")
 
     # D - Cart 전체 삭제
     @staticmethod
