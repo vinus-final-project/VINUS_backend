@@ -9,7 +9,7 @@ from app.db.models.optionGroups import OptionGroups
 
 class Menus:
     @staticmethod
-    async def get_menus_by_category_crud_menuCrud(db: AsyncSession, c_id: int):
+    async def get_menus_by_category_crud_menus(db: AsyncSession, c_id: int):
         query = (
             select(MenusModel)
             .where(MenusModel.c_id == c_id)
@@ -18,7 +18,7 @@ class Menus:
         return result.scalars().all()
 
     @staticmethod
-    async def get_menu_detail_crud_menuCrud(db: AsyncSession, m_id: int):
+    async def get_menu_detail_crud_menus(db: AsyncSession, m_id: int):
         query = (
             select(MenusModel)
             .options(
