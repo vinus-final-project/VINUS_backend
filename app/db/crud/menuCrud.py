@@ -31,4 +31,4 @@ class CrudMenus:
         )
         result = await db.execute(query)
         return result.scalars().first()
-    #땅땅땅
+    
