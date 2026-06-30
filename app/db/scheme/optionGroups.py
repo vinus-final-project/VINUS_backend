@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 
 # Base
-class SchemeOptionGroupsBase(BaseModel):
+class OptionGroupsBase(BaseModel):
     m_id: int
     og_name: str
     og_required: bool = False
@@ -9,18 +9,18 @@ class SchemeOptionGroupsBase(BaseModel):
     og_max: int = 999
 
 # C - Create
-class SchemeOptionGroupsCreate(SchemeOptionGroupsBase):
+class OptionGroupsCreate(OptionGroupsBase):
     pass
 
 # R - Read
-class SchemeOptionGroupsResponse(SchemeOptionGroupsBase):
+class OptionGroupsResponse(OptionGroupsBase):
     og_id: int
 
     model_config = ConfigDict(from_attributes=True)
 
 
 # U - Update
-class SchemeOptionGroupsUpdate(BaseModel):
+class OptionGroupsUpdate(BaseModel):
     og_name: str | None = None
     og_required: bool | None = None
     og_min: int | None = None

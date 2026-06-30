@@ -1,11 +1,11 @@
 from pydantic import BaseModel, ConfigDict
 
-class SchemePaymentConfirmRequest(BaseModel):
+class PaymentConfirmRequest(BaseModel):
     payment_key: str
     order_id: int
     amount: int
 
-class SchemePaymentConfirmResponse(BaseModel):
+class PaymentConfirmResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
     success: bool

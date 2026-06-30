@@ -2,14 +2,14 @@
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.categories import ModelsCategories
-from app.db.models.menus import ModelsMenus
-from app.db.models.allergies import ModelsAllergies
-from app.db.models.ingredients import ModelsIngredients
-from app.db.models.optionGroups import ModelsOptionGroups
-from app.db.models.options import ModelsOptions
-from app.db.models.menuAllergies import ModelsMenuAllergies
-from app.db.models.menuIngredients import ModelsMenuIngredients
+from app.db.models.categories import Categories
+from app.db.models.menus import Menus
+from app.db.models.allergies import Allergies
+from app.db.models.ingredients import Ingredients
+from app.db.models.optionGroups import OptionGroups
+from app.db.models.options import Options
+from app.db.models.menuAllergies import MenuAllergies
+from app.db.models.menuIngredients import MenuIngredients
 
 
 # =========================================================
@@ -166,27 +166,27 @@ async def _is_empty(db: AsyncSession, model) -> bool:
 
 async def run_all_seeds(db: AsyncSession):
     # 멱등성 — 이미 데이터 있으면 전체 스킵
-    if not await _is_empty(db, ModelsCategories):
+    if not await _is_empty(db, Categories):
         return
 
     # 1단계: 부모 (FK 없음)
     db.add_all([
-        ModelsCategories(c_id=c_id, c_name=c_name)
+        Categories(c_id=c_id, c_name=c_name)
         for (c_id, c_name) in CATEGORIES
     ])
     db.add_all([
-        ModelsAllergies(a_id=a_id, a_name=a_name)
+        Allergies(a_id=a_id, a_name=a_name)
         for (a_id, a_name) in ALLERGIES
     ])
     db.add_all([
-        ModelsIngredients(i_id=i_id, i_name=i_name)
+        Ingredients(i_id=i_id, i_name=i_name)
         for (i_id, i_name) in INGREDIENTS
     ])
     await db.flush()
 
     # 2단계: menus (→categories)
     db.add_all([
-        ModelsMenus(m_id=m_id, c_id=c_id, m_name=m_name, m_price=m_price, m_description=m_description)
+        Menus(m_id=m_id, c_id=c_id, m_name=m_name, m_price=m_price, m_description=m_description)
         for (m_id, c_id, m_name, m_price, m_description) in MENUS
     ])
     await db.flush()
@@ -197,13 +197,13 @@ async def run_all_seeds(db: AsyncSession):
     for (m_id, c_id, *_rest) in MENUS:
         for (og_name, og_required, og_min, og_max, opts) in GROUPS_BY_CATEGORY[c_id]:
             og_id += 1
-            db.add(ModelsOptionGroups(
+            db.add(OptionGroups(
                 og_id=og_id, m_id=m_id, og_name=og_name,
                 og_required=og_required, og_min=og_min, og_max=og_max,
             ))
             for (op_name, op_price) in opts:
                 op_id += 1
-                db.add(ModelsOptions(
+                db.add(Options(
                     op_id=op_id, og_id=og_id, op_name=op_name, op_price=op_price,
                 ))
     await db.flush()
@@ -211,9 +211,9 @@ async def run_all_seeds(db: AsyncSession):
     # 5단계: 매핑 (m_a_id / m_i_id 는 autoincrement → 생략)
     for m_id, a_ids in MENU_ALLERGY.items():
         for a_id in a_ids:
-            db.add(ModelsMenuAllergies(m_id=m_id, a_id=a_id))
+            db.add(MenuAllergies(m_id=m_id, a_id=a_id))
     for m_id, i_ids in MENU_INGREDIENT.items():
         for i_id in i_ids:
-            db.add(ModelsMenuIngredients(m_id=m_id, i_id=i_id))
+            db.add(MenuIngredients(m_id=m_id, i_id=i_id))
     await db.flush()
     # commit은 lifespan의 session.begin() 이 처리

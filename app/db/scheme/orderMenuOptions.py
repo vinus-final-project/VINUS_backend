@@ -1,16 +1,16 @@
 from pydantic import BaseModel, ConfigDict
 
 # Base
-class SchemeOrderMenuOptionsBase(BaseModel):
+class OrderMenuOptionsBase(BaseModel):
     o_m_id: int
     op_id: int
 
 # C - Create
-class SchemeOrderMenuOptionsCreate(SchemeOrderMenuOptionsBase):
+class OrderMenuOptionsCreate(OrderMenuOptionsBase):
     pass
 
 # R - Read
-class SchemeOrderMenuOptionsResponse(SchemeOrderMenuOptionsBase):
+class OrderMenuOptionsResponse(OrderMenuOptionsBase):
     o_m_o_id: int
 
     model_config = ConfigDict(from_attributes=True)
@@ -18,7 +18,7 @@ class SchemeOrderMenuOptionsResponse(SchemeOrderMenuOptionsBase):
 
 # U - Update
 # 주문-메뉴-옵션은 수정 없음 (삭제 후 재생성)
-class SchemeOrderMenuOptionsUpdate(BaseModel):
+class OrderMenuOptionsUpdate(BaseModel):
     pass
 
 # D - Delete

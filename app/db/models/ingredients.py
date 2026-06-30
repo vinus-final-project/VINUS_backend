@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, UniqueConstraint
 from app.db.database import Base
 from sqlalchemy.orm import relationship
 
-class ModelsIngredients(Base):
+class Ingredients(Base):
     __tablename__ = "ingredients"
 
     #변수 설정
@@ -11,4 +11,4 @@ class ModelsIngredients(Base):
 
 
     #관계 설정
-    menu_ingredients = relationship("ModelsMenuIngredients", back_populates="ingredient")
+    menu_ingredients = relationship("MenuIngredients", back_populates="ingredient")

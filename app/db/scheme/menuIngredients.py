@@ -1,14 +1,14 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
-class SchemeMenuIngredientsBase(BaseModel):
+class MenuIngredientsBase(BaseModel):
     m_id: int
     i_id: int
 
-class SchemeMenuIngredientsCreate(SchemeMenuIngredientsBase):
+class MenuIngredientsCreate(MenuIngredientsBase):
     pass
 
-class SchemeMenuIngredientsResponse(SchemeMenuIngredientsBase):
+class MenuIngredientsResponse(MenuIngredientsBase):
     m_i_id: int
 
     model_config = ConfigDict(from_attributes=True)

@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String
 from app.db.database import Base
 
-class ModelsCategories(Base):
+class Categories(Base):
     __tablename__ = "categories"
 
     # 변수 선언

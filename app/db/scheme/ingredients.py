@@ -1,13 +1,13 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
-class SchemeIngredientsBase(BaseModel):
+class IngredientsBase(BaseModel):
     i_name: str
 
-class SchemeIngredientsCreate(SchemeIngredientsBase):
+class IngredientsCreate(IngredientsBase):
     pass
 
-class SchemeIngredientsResponse(SchemeIngredientsBase):
+class IngredientsResponse(IngredientsBase):
     i_id: int
 
     model_config = ConfigDict(from_attributes=True)

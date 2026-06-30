@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, ForeignKey
 from app.db.database import Base
 from sqlalchemy.orm import relationship
 
-class ModelsOrderMenus(Base):
+class OrderMenus(Base):
     __tablename__ = "orderMenus"
 
     # 변수 선언
@@ -12,6 +12,6 @@ class ModelsOrderMenus(Base):
     o_m_qty = Column(Integer, default=1)
 
     #관계 설정
-    order = relationship("ModelsOrders", back_populates="order_menus")
-    menu = relationship("ModelsMenus", back_populates="order_menus")
-    order_menu_options = relationship("ModelsOrderMenuOptions", back_populates="order_menu")
+    order = relationship("Orders", back_populates="order_menus")
+    menu = relationship("Menus", back_populates="order_menus")
+    order_menu_options = relationship("OrderMenuOptions", back_populates="order_menu")

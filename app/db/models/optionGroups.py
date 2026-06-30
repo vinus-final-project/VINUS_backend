@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from app.db.database import Base
 
 
-class ModelsOptionGroups(Base):
+class OptionGroups(Base):
     __tablename__ = "optionGroups"
 
     # 변수 선언
@@ -22,5 +22,5 @@ class ModelsOptionGroups(Base):
 
     #관계 설정
 
-    menu = relationship("ModelsMenus", back_populates="option_groups")
-    options = relationship("ModelsOptions", back_populates="option_group")
+    menu = relationship("Menus", back_populates="option_groups")
+    options = relationship("Options", back_populates="option_group")
