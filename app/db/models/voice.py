@@ -3,7 +3,7 @@ from sqlalchemy import Column, Integer, String
 from app.db.database import Base
 
 
-class ModelsVoice(Base):
+class Voice(Base):
     __tablename__ = "voice"
 
     v_id = Column(Integer, primary_key=True)

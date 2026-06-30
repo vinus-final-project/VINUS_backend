@@ -1,10 +1,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.crud.categories import CrudCategories
+from app.db.crud.categories import Categories as CategoriesCrud   # 2번 줄
 
-class ServicesCategories:
+class Categories:
     @staticmethod
     async def get_category_list_services_categories(db: AsyncSession):
-        db_categories = await CrudCategories.get_all_categories_crud_categories(db)
+        db_categories = await CategoriesCrud.get_all_categories_crud_categories(db)
 
         return {
         "categories": [

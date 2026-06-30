@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 '''BaseSettings 환경변수 기반 설정 관리 클래스 (DB, AI 서버)'''
 
 
-class CoreSettings(BaseSettings):
+class Settings(BaseSettings):
     # ===== 설정(Config) =====
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -44,4 +44,4 @@ class CoreSettings(BaseSettings):
         return f"mysql+pymysql://{self.db_credentials}"
 
 
-settings = CoreSettings()
+settings = Settings()

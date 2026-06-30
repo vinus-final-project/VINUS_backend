@@ -14,7 +14,7 @@ class SpeakerType(enum.Enum):
     USER = "USER"
 
 
-class ModelsSessionLogs(Base):
+class SessionLogs(Base):
     __tablename__ = "sessionLogs"
 
     # 변수 선언
@@ -26,4 +26,4 @@ class ModelsSessionLogs(Base):
     sl_created_at = Column(DateTime, nullable=False, default=func.now())
 
     # 관계 설정
-    session = relationship("ModelsSessions", back_populates="session_logs")
+    session = relationship("Sessions", back_populates="session_logs")

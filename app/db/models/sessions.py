@@ -20,7 +20,7 @@ class SeCarry(enum.Enum):
     TAKEOUT = "TAKEOUT"
 
 
-class ModelsSessions(Base):
+class Sessions(Base):
     __tablename__ = "sessions"
 
     # 변수 선언
@@ -31,5 +31,5 @@ class ModelsSessions(Base):
     se_ended_at = Column(DateTime, nullable=True)
 
     # 관계 설정
-    orders = relationship("ModelsOrders", back_populates="session")
-    session_logs = relationship("ModelsSessionLogs", back_populates="session")
+    orders = relationship("Orders", back_populates="session")
+    session_logs = relationship("SessionLogs", back_populates="session")

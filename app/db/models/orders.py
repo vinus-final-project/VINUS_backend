@@ -13,7 +13,7 @@ class OdState(enum.Enum):
     REFUNDED = "REFUNDED"
 
 
-class ModelsOrders(Base):
+class Orders(Base):
     __tablename__ = "orders"
 
     # 변수 선언
@@ -25,5 +25,5 @@ class ModelsOrders(Base):
     od_no = Column(Integer, nullable=False)
 
     # 관계 설정
-    session = relationship("ModelsSessions", back_populates="orders")
-    order_menus = relationship("ModelsOrderMenus", back_populates="order")
+    session = relationship("Sessions", back_populates="orders")
+    order_menus = relationship("OrderMenus", back_populates="order")

@@ -3,7 +3,7 @@ from app.db.database import Base
 from sqlalchemy.orm import relationship
 
 
-class ModelsAllergies(Base):
+class Allergies(Base):
     __tablename__ = "allergies"
 
     # 변수 설정
@@ -12,4 +12,4 @@ class ModelsAllergies(Base):
 
     #관계 설정
 
-    menu_allergies = relationship("ModelsMenuAllergies", back_populates="allergy")
+    menu_allergies = relationship("MenuAllergies", back_populates="allergy")
