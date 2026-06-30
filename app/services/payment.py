@@ -12,7 +12,7 @@ class Payment:
     @staticmethod
     async def confirm_services_payment(db: AsyncSession, payment_key: str, order_id: int, amount: int):
         # 1. 주문 존재 여부 확인
-        order = await PaymentCrud.get_crud_paymentCrud(db, order_id)
+        order = await PaymentCrud.get_crud_payment(db, order_id)
         if not order:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -38,7 +38,7 @@ class Payment:
 
         # 3. 토스 응답 처리
         if response.status_code == 200:
-            await PaymentCrud.update_crud_paymentCrud(db, order_id, OdState.PAID)
+            await PaymentCrud.update_crud_payment(db, order_id, OdState.PAID)
             return {"success": True, "od_id": order_id, "od_state": "PAID"}
         else:
             await Payment.update_crud_paymentCrud(db, order_id, OdState.CANCELLED)
