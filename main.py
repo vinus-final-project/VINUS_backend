@@ -30,6 +30,8 @@ from app.routers.menus import router as menus_router
 from app.routers.voice import router as voice_router
 from app.routers.payment import router as payment_router
 from app.routers.session import router as session_router
+from app.routers.order import router as order_router
+from app.routers.cart import router as cart_router
 
 
 load_dotenv(dotenv_path=".env")
@@ -74,6 +76,8 @@ app.include_router(menus_router)
 app.include_router(voice_router)
 app.include_router(payment_router)
 app.include_router(session_router)
+app.include_router(order_router)
+app.include_router(cart_router)
 
 if __name__ == "__main__":
     uvicorn.run(

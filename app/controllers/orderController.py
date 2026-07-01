@@ -21,7 +21,7 @@ class OrderController:
 
     # ------------------------------------------------------------------
     # create_order_item : 현재 주문(OrderItem) 생성
-    #   - 수량은 미지정(None) → set_quantity 에서 반드시 입력
+    #   - 수량은 미지정(None) → set_quantity 에서 입력
     #   - 필수옵션 유무로 시작 상태 분기
     # ------------------------------------------------------------------
     @staticmethod
@@ -42,18 +42,17 @@ class OrderController:
             m_id=menu_id,
         )
 
-        # 필수 옵션 그룹이 하나라도 있으면 필수옵션 단계,
-        # 없으면 바로 수량 단계로 시작
+        # 필수 옵션 그룹이 있으면 필수옵션 단계,
+        # 없으면 바로 선택옵션 단계로 시작
         has_required = any(
             group["og_required"] for group in menu["option_groups"]
         )
         initial_status = (
             OrderItemStatus.SELECTING_REQUIRED_OPTION
             if has_required
-            else OrderItemStatus.SELECTING_QUANTITY
+            else OrderItemStatus.ASKING_OPTIONAL_OPTION
         )
 
-        # OrderItem 생성
         session.order_item = OrderItem(
             menu_id=menu_id,
             status=initial_status,
@@ -61,7 +60,7 @@ class OrderController:
 
     # ------------------------------------------------------------------
     # select_required_option : 필수 옵션 선택
-    #   → 모든 필수 그룹이 채워지면 status=SELECTING_QUANTITY
+    #   → 모든 필수 그룹이 채워지면 status=ASKING_OPTIONAL_OPTION
     # ------------------------------------------------------------------
     @staticmethod
     async def select_required_option_controllers_orderController(
@@ -98,7 +97,7 @@ class OrderController:
 
         selected.append(option_id)
 
-        # 모든 필수 그룹이 1개 이상 선택되면 다음 단계(수량)로
+        # 모든 필수 그룹이 채워지면 다음 단계(선택옵션)로
         all_required_selected = True
         for g in menu["option_groups"]:
             if not g["og_required"]:
@@ -108,25 +107,25 @@ class OrderController:
                 break
 
         if all_required_selected:
-            session.order_item.status = OrderItemStatus.SELECTING_QUANTITY
+            session.order_item.status = OrderItemStatus.ASKING_OPTIONAL_OPTION
 
     # ------------------------------------------------------------------
-    # set_quantity : 주문 수량 설정 → status=ASKING_OPTIONAL_OPTION
+    # set_quantity : 주문 수량 설정 (언제든 변경 가능, status 변경 없음)
     # ------------------------------------------------------------------
     @staticmethod
     async def set_quantity_controllers_orderController(
         session: Session,
         quantity: int,
     ) -> None:
-        """주문 수량 설정"""
+        """주문 수량 설정 (언제든 변경 가능, status 변경 없음)"""
 
         if session.order_item is None:
             raise ValueError("OrderItem not found.")
         if quantity < 1:
             raise ValueError("Quantity must be greater than 0.")
 
+        # 수량은 값만 갱신 — 흐름 단계에 영향 없음
         session.order_item.quantity = quantity
-        session.order_item.status = OrderItemStatus.ASKING_OPTIONAL_OPTION
 
     # ------------------------------------------------------------------
     # select_optional_option : 선택 옵션 선택 (og_max 까지 누적, 상태 유지)
@@ -171,7 +170,7 @@ class OrderController:
         # 상태는 ASKING_OPTIONAL_OPTION 유지 (확정은 complete_order_item)
 
     # ------------------------------------------------------------------
-    # complete_order_item : 작성 완료 (필수/min/max 검증 후 COMPLETE)
+    # complete_order_item : 작성 완료 (필수/min/max + 수량 검증 후 COMPLETE)
     # ------------------------------------------------------------------
     @staticmethod
     async def complete_order_item_controllers_orderController(
