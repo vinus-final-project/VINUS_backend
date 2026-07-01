@@ -1,24 +1,24 @@
 from pydantic import BaseModel, ConfigDict
 
 # Base
-class SchemeOptionsBase(BaseModel):
+class OptionsBase(BaseModel):
     og_id: int
     op_name: str
     op_price: int
 
 # C - Create
-class SchemeOptionsCreate(SchemeOptionsBase):
+class OptionsCreate(OptionsBase):
     pass
 
 # R - Read
-class SchemeOptionsResponse(SchemeOptionsBase):
+class OptionsResponse(OptionsBase):
     op_id: int
 
     model_config = ConfigDict(from_attributes=True)
 
 
 # U - Update
-class SchemeOptionsUpdate(BaseModel):
+class OptionsUpdate(BaseModel):
     op_name: str | None = None
     op_price: int | None = None
 

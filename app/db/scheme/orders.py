@@ -9,18 +9,18 @@ class OdState(str, Enum):
     REFUNDED = "REFUNDED"
 
 # Base
-class SchemeOrdersBase(BaseModel):
+class OrdersBase(BaseModel):
     se_id: str        
     od_price: int
     od_no: int
     od_state: OdState = OdState.PENDING
 
 # C - Create
-class SchemeOrdersCreate(SchemeOrdersBase):
+class OrdersCreate(OrdersBase):
     pass
 
 # R - Read
-class SchemeOrdersResponse(SchemeOrdersBase):
+class OrdersResponse(OrdersBase):
     od_id: int
     od_time: datetime
 
@@ -28,7 +28,7 @@ class SchemeOrdersResponse(SchemeOrdersBase):
 
 
 # U - Update
-class SchemeOrdersUpdate(BaseModel):
+class OrdersUpdate(BaseModel):
     od_state: OdState | None = None
     od_price: int | None = None
 

@@ -1,12 +1,12 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.crud.menuCrud import CrudMenus
+from app.db.crud.menus import Menus as MenusCrud
 
-class ServicesMenus:
+class Menus:
     @staticmethod
     async def get_menus_list_by_category_services_menus(c_id: int, db: AsyncSession):
         # [메뉴 조회 API]
-        db_menus = await CrudMenus.get_menus_by_category_crud_menuCrud(db, c_id=c_id)
+        db_menus = await MenusCrud.get_menus_by_category_crud_menus(db, c_id=c_id)
         
         response_menus = []
         for m in db_menus:
@@ -23,7 +23,7 @@ class ServicesMenus:
     @staticmethod
     async def get_single_menu_detail_services_menus(m_id: int, db: AsyncSession):
         # [메뉴 상세 조회 API]
-        db_menu = await CrudMenus.get_menu_detail_crud_menuCrud(db, m_id=m_id)
+        db_menu = await MenusCrud.get_menu_detail_crud_menus(db, m_id=m_id)
         
         if not db_menu:
             raise HTTPException(

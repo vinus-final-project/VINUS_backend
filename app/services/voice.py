@@ -1,13 +1,13 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.crud.voice import CrudVoice
+from app.db.crud.voice import Voice as VoiceCrud          # 4번 줄
 
 
-class ServicesVoice:
+class Voice:
     @staticmethod
     async def get_voice_by_code_services_voice(v_code: str, db: AsyncSession):
-        db_voice = await CrudVoice.get_voice_by_code_crud_voice(db, v_code=v_code)
+        db_voice = await VoiceCrud.get_voice_by_code_crud_voice(db, v_code=v_code)
 
         if not db_voice:
             raise HTTPException(

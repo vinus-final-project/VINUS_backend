@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.db.database import Base
 
-class ModelsOptions(Base):
+class Options(Base):
     __tablename__ = "options"
 
     # 변수 선언
@@ -19,5 +19,5 @@ class ModelsOptions(Base):
     )
 
     #관계 설정
-    option_group = relationship("ModelsOptionGroups", back_populates="options")
-    order_menu_options = relationship("ModelsOrderMenuOptions", back_populates="option")
+    option_group = relationship("OptionGroups", back_populates="options")
+    order_menu_options = relationship("OrderMenuOptions", back_populates="option")

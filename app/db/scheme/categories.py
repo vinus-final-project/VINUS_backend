@@ -1,12 +1,12 @@
 from pydantic import BaseModel, ConfigDict
 
-class SchemeCategoriesBase(BaseModel):
+class CategoriesBase(BaseModel):
     c_name: str
 
-class SchemeCategoriesCreate(SchemeCategoriesBase):
+class CategoriesCreate(CategoriesBase):
     pass
 
-class SchemeCategoriesRead(SchemeCategoriesBase):
+class CategoriesRead(CategoriesBase):
     model_config = ConfigDict(from_attributes=True)# 관례상 위에 두는게 맞음
     
     c_id: int

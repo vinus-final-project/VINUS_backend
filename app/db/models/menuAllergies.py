@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, UniqueConstraint
 from app.db.database import Base
 from sqlalchemy.orm import relationship
 
-class ModelsMenuAllergies(Base):
+class MenuAllergies(Base):
     __tablename__ = "menuAllergies"
 
     #변수 설정
@@ -17,5 +17,5 @@ class ModelsMenuAllergies(Base):
 
     #관계 설정
 
-    menu = relationship("ModelsMenus", back_populates="menu_allergies")
-    allergy = relationship("ModelsAllergies", back_populates="menu_allergies")
+    menu = relationship("Menus", back_populates="menu_allergies")
+    allergy = relationship("Allergies", back_populates="menu_allergies")
