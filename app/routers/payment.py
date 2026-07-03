@@ -6,6 +6,7 @@ from app.services.payment import Payment
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
+# C - 결제 승인 요청 처리
 @router.post("/confirm", response_model=PaymentConfirmResponse, status_code=status.HTTP_200_OK)
 async def confirm_routers_paymentRouter(
     payment_data: PaymentConfirmRequest,

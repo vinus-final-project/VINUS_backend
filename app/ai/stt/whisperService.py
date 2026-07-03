@@ -11,6 +11,13 @@ class WhisperService:
     compute_type = "float16" if torch.cuda.is_available() else "int8"
     language = "ko"
 
+    # 메뉴 인식 정확도 향상용 힌트 (Whisper에 도메인 맥락 제공)
+    initial_prompt = (
+        "카페 음료 주문입니다. "
+        "아메리카노, 카페라떼, 바닐라라떼, 카라멜마끼아또, 아인슈페너, "
+        "흑당카페라떼, 녹차라떼, 초코라떼, 딸기스무디, 아이스, 핫, 라지, 휘핑, 샷추가."
+    )
+
     # 모델 로드 (클래스 정의 시 1회 — 싱글톤)
     model = WhisperModel(model_size, device=device, compute_type=compute_type)
 
@@ -37,6 +44,7 @@ class WhisperService:
             language=WhisperService.language,
             beam_size=5,
             vad_filter=False,
+            initial_prompt=WhisperService.initial_prompt,
         )
 
         transcribed_text = "".join(seg.text for seg in segments).strip()

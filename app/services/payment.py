@@ -9,6 +9,7 @@ from app.db.models.orders import OdState
 
 class Payment:
 
+    # C - 결제 승인 요청 처리 (토스 API 연동 및 상태 변경)
     @staticmethod
     async def confirm_services_payment(db: AsyncSession, payment_key: str, order_id: int, amount: int):
         # 1. 주문 존재 여부 확인
