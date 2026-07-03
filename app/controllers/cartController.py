@@ -28,6 +28,8 @@ class CartController:
             pending_item=order_item,
         )
         session.order_item = None
+        session.current_menu = None        
+
 
     # 장바구니 항목 삭제 (없으면 CART_ITEM_NOT_FOUND)
     @staticmethod

@@ -42,6 +42,7 @@ class Session(BaseModel):
     fsm_state: FSMState = FSMState.INIT                # 현재 FSM 상태
     order_type: Optional[OrderType] = None             # 매장/포장 (선택 전엔 None)
     order_item: Optional[OrderItem] = None             # 현재 작성 중인 주문 항목
+    current_menu: Optional[dict] = None                # 현재 주문 메뉴 상세 스냅샷
     cart: list[CartItem] = Field(default_factory=list) # 장바구니
     recommendation_list: list[int] = Field(default_factory=list)   # 추천 메뉴 리스트
     logs: list[Log] = Field(default_factory=list)      # 세션 로그 버퍼
