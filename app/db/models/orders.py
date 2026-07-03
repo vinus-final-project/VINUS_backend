@@ -23,6 +23,7 @@ class Orders(Base):
     od_price = Column(Integer, nullable=False)
     od_state = Column(Enum(OdState), default=OdState.PENDING)
     od_no = Column(Integer, nullable=False)
+    pa_key = Column(String(200), nullable=True)
 
     # 관계 설정
     session = relationship("Sessions", back_populates="orders")

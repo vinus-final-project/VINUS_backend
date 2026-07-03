@@ -90,7 +90,7 @@ class EventExecutor:
             fsm_state=session.fsm_state if session else FSMState.INIT,
             order_type=session.order_type if session else None,
             order_item=session.order_item if session else None,
-            current_menu=session.current_menu if session else None, 
+            current_menu=session.current_menu if session else None,
             cart=session.cart if session else [],
             total_price=(
                 sum(ci.unit_price * ci.quantity for ci in session.cart) if session else 0
