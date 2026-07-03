@@ -6,8 +6,9 @@ class Payment:
     """결제 관련 DB 조작"""
 
     @staticmethod
-    async def get_crud_payment(db: AsyncSession, od_id: int):
-        query = select(Orders).where(Orders.od_id == od_id)
+    async def get_crud_payment_by_session(db: AsyncSession, se_id: str):
+        """: od_id 대신 session_id(se_id)로 주문을 조회합니다."""
+        query = select(Orders).where(Orders.se_id == se_id)
         result = await db.execute(query)
         return result.scalars().first()
 
