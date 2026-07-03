@@ -11,9 +11,9 @@ async def confirm_routers_paymentRouter(
     payment_data: PaymentConfirmRequest,
     db: AsyncSession = Depends(get_db)
 ):
+    # 파라미터 인자를 대폭 정돈하여 session_id 기준으로 이관합니다.
     return await Payment.confirm_services_payment(
-        db,
-        payment_data.payment_key,
-        payment_data.order_id,
-        payment_data.amount
+        db=db,
+        session_id=payment_data.session_id,
+        amount=payment_data.amount
     )
