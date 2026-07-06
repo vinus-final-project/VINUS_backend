@@ -32,6 +32,8 @@ from app.routers.payment import router as payment_router
 from app.routers.session import router as session_router
 from app.routers.order import router as order_router
 from app.routers.cart import router as cart_router
+from app.routers import websocket
+
 
 
 load_dotenv(dotenv_path=".env")
@@ -77,6 +79,7 @@ app.include_router(payment_router)
 app.include_router(session_router)
 app.include_router(order_router)
 app.include_router(cart_router)
+app.include_router(websocket.router)
 
 if __name__ == "__main__":
     uvicorn.run(
