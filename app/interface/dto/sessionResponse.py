@@ -7,6 +7,7 @@ from app.fsm.FSMstate import FSMState
 from app.memory.session.enums import OrderType
 from app.memory.session.orderItem import OrderItem
 from app.memory.session.cartItem import CartItem
+from app.db.scheme.menus import MenusDetailResponse
 
 
 class ResponseType(str, Enum):
@@ -25,7 +26,9 @@ class SessionResponse(BaseModel):
     fsm_state: FSMState                                             # 현재 FSM 상태
     order_type: Optional[OrderType] = None                         # 매장/포장
     order_item: Optional[OrderItem] = None                         # 현재 작성 중 주문
+    current_menu: Optional[MenusDetailResponse] = None             # 현재 주문 메뉴 상세(옵션 렌더용)
     cart: list[CartItem] = Field(default_factory=list)             # 장바구니
+    total_price: int = 0                                           # 장바구니 총액(결제 금액)
     recommendation_list: list[int] = Field(default_factory=list)   # 추천 메뉴
     error_code: Optional[str] = None                               # 오류 코드
     session_end: bool = False                                       # 세션 종료 여부

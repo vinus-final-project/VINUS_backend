@@ -18,10 +18,11 @@ from app.memory.session.enums import (
     SpeakerType,
     SessionStatus,
 )
-from app.memory.session.cartItem import CartItem
+from app.memory.session.cartItem import CartItem, CartItemOption
 from app.memory.session.orderItem import OrderItem
 from app.memory.session.session import Log, Session
 from app.memory.session.sessionMemory import SessionMemory
+
 
 
 class SessionCrud:
@@ -64,13 +65,48 @@ class SessionCrud:
                 cart_item.quantity += pending_item.quantity
                 return
 
-        # 3) 그 외에는 신규 CartItem 생성
+       # 3) 신규 CartItem 생성 — current_menu 스냅샷에서 이름/가격 조립
+        menu = session.current_menu
+        if menu is None:
+            raise ValueError("Current menu not loaded.")
+
+        options_detail: list[CartItemOption] = []
+        option_price_sum = 0
+        for og_id, op_ids in pending_item.selected_options.items():
+            group = next(
+                (g for g in menu["option_groups"] if g["og_id"] == og_id),
+                None,
+            )
+            if group is None:
+                continue
+            for op_id in op_ids:
+                op = next(
+                    (o for o in group["options"] if o["op_id"] == op_id),
+                    None,
+                )
+                if op is None:
+                    continue
+                options_detail.append(
+                    CartItemOption(
+                        op_id=op["op_id"],
+                        op_name=op["op_name"],
+                        op_price=op["op_price"],
+                    )
+                )
+                option_price_sum += op["op_price"]
+
+        # 1개당 가격 = 메뉴 가격 + 옵션 추가금 합
+        unit_price = menu["m_price"] + option_price_sum
+
         session.cart.append(
             CartItem(
                 cart_item_id=session._next_cart_item_id,
                 menu_id=pending_item.menu_id,
+                menu_name=menu["m_name"],
                 quantity=pending_item.quantity,
+                unit_price=unit_price,
                 selected_options=pending_item.selected_options.copy(),
+                options=options_detail,
             )
         )
         session._next_cart_item_id += 1

@@ -57,33 +57,31 @@ class OrderController:
             menu_id=menu_id,
             status=initial_status,
         )
+        session.current_menu = menu                 
+
 
     # ------------------------------------------------------------------
     # select_required_option : 필수 옵션 선택
     #   → 모든 필수 그룹이 채워지면 status=ASKING_OPTIONAL_OPTION
     # ------------------------------------------------------------------
-    @staticmethod
+    @staticmethod   
     async def select_required_option_controllers_orderController(
-        db: AsyncSession,
         session: Session,
         option_id: int,
     ) -> None:
-        """필수 옵션 선택"""
+        """필수 옵션 선택 (메뉴는 세션 스냅샷 사용)"""
 
         if session.order_item is None:
             raise ValueError("OrderItem not found.")
 
-        menu = await Menus.get_single_menu_detail_services_menus(
-            db=db,
-            m_id=session.order_item.menu_id,
-        )
+        menu = session.current_menu
+        if menu is None:
+            raise ValueError("Current menu not loaded.")
 
-        # 옵션이 속한 그룹 역추적
         group = OrderController._find_group_by_option(menu, option_id)
         if group is None:
             raise ValueError("Option not found.")
 
-        # 필수 그룹인지 확인
         if not group["og_required"]:
             raise ValueError("OptionGroup is not required.")
 
@@ -132,29 +130,25 @@ class OrderController:
     # ------------------------------------------------------------------
     @staticmethod
     async def select_optional_option_controllers_orderController(
-        db: AsyncSession,
         session: Session,
         option_id: int,
     ) -> None:
-        """선택 옵션 선택"""
+        """선택 옵션 선택 (메뉴는 세션 스냅샷 사용)"""
 
         if session.order_item is None:
             raise ValueError("OrderItem not found.")
 
-        # FSM 조건: status == ASKING_OPTIONAL_OPTION
         if session.order_item.status != OrderItemStatus.ASKING_OPTIONAL_OPTION:
             raise ValueError("Invalid order item state.")
 
-        menu = await Menus.get_single_menu_detail_services_menus(
-            db=db,
-            m_id=session.order_item.menu_id,
-        )
+        menu = session.current_menu
+        if menu is None:
+            raise ValueError("Current menu not loaded.")
 
         group = OrderController._find_group_by_option(menu, option_id)
         if group is None:
             raise ValueError("Option not found.")
 
-        # 선택(비필수) 그룹인지 확인
         if group["og_required"]:
             raise ValueError("OptionGroup is required.")
 
@@ -167,27 +161,23 @@ class OrderController:
             raise ValueError("Maximum selectable options exceeded.")
 
         selected.append(option_id)
-        # 상태는 ASKING_OPTIONAL_OPTION 유지 (확정은 complete_order_item)
 
     # ------------------------------------------------------------------
     # complete_order_item : 작성 완료 (필수/min/max + 수량 검증 후 COMPLETE)
     # ------------------------------------------------------------------
     @staticmethod
     async def complete_order_item_controllers_orderController(
-        db: AsyncSession,
         session: Session,
     ) -> None:
-        """현재 주문(OrderItem) 작성 완료"""
+        """작성 완료 (메뉴는 세션 스냅샷 사용, 필수/min/max + 수량 검증)"""
 
         if session.order_item is None:
             raise ValueError("OrderItem not found.")
 
-        menu = await Menus.get_single_menu_detail_services_menus(
-            db=db,
-            m_id=session.order_item.menu_id,
-        )
+        menu = session.current_menu
+        if menu is None:
+            raise ValueError("Current menu not loaded.")
 
-        # OrderItem 완료 시 검증 (REQUIRED / MIN / MAX)
         for group in menu["option_groups"]:
             og_id = group["og_id"]
             count = len(session.order_item.selected_options.get(og_id, []))
@@ -198,15 +188,10 @@ class OrderController:
                 )
             if count > 0:
                 if count < group["og_min"]:
-                    raise ValueError(
-                        f"Option min not met : {group['og_name']}"
-                    )
+                    raise ValueError(f"Option min not met : {group['og_name']}")
                 if count > group["og_max"]:
-                    raise ValueError(
-                        f"Option limit exceeded : {group['og_name']}"
-                    )
+                    raise ValueError(f"Option limit exceeded : {group['og_name']}")
 
-        # 수량 입력 여부 확인 (반드시 set_quantity 를 거쳐야 함)
         if session.order_item.quantity is None:
             raise ValueError("Quantity not selected.")
 
@@ -225,3 +210,4 @@ class OrderController:
             raise ValueError("OrderItem not found.")
 
         session.order_item = None
+        session.current_menu = None       

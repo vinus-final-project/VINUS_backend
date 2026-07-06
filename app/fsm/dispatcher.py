@@ -16,6 +16,8 @@ from app.memory.session.session import Session
 from app.controllers.orderController import OrderController
 from app.controllers.cartController import CartController
 from app.controllers.systemController import SystemController
+from app.controllers.paymentController import PaymentController   # ← 추가
+
 
 
 class Dispatcher:
@@ -68,6 +70,17 @@ class Dispatcher:
     ) -> Optional[Session]:
         match event:
 
+            # ---------- 결제 시작 ----------
+            case Event.START_PAYMENT:
+                await PaymentController.start_payment_controllers_paymentController(
+                    session,
+                )
+
+            # ---------- 결제 / 추천: 타 담당 (미배선) ----------
+            # case _ :
+            #     raise NotImplementedError(f"Event not wired: {event}")
+            
+            
             # ---------- 주문 유형 (B: 세션 생성 + 유형 설정) ----------
             case Event.SELECT_ORDER_TYPE:
                 return await SystemController.create_session_controllers_systemController(
@@ -88,18 +101,19 @@ class Dispatcher:
                     session,
                 )
 
-            # ---------- 옵션 ----------
+            # ---------- 옵션 (메뉴 스냅샷 사용 → db 불필요) ----------
             case Event.SELECT_REQUIRED_OPTION:
                 await OrderController.select_required_option_controllers_orderController(
-                    db=db, session=session, option_id=params["option_id"],
+                    session=session, option_id=params["option_id"],
                 )
             case Event.SELECT_OPTIONAL_OPTION:
                 await OrderController.select_optional_option_controllers_orderController(
-                    db=db, session=session, option_id=params["option_id"],
+                    session=session, option_id=params["option_id"],
                 )
             case Event.SKIP_OPTIONAL_OPTION:
+                # 완료 검증(스냅샷 사용) → 카트로 이동(order_item 제거)
                 await OrderController.complete_order_item_controllers_orderController(
-                    db=db, session=session,
+                    session,
                 )
                 await CartController.add_to_cart_controllers_cartController(
                     session=session, order_item=session.order_item,
