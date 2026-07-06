@@ -16,6 +16,8 @@ from app.memory.session.session import Session
 from app.controllers.orderController import OrderController
 from app.controllers.cartController import CartController
 from app.controllers.systemController import SystemController
+from app.controllers.paymentController import PaymentController   # ← 추가
+
 
 
 class Dispatcher:
@@ -68,6 +70,17 @@ class Dispatcher:
     ) -> Optional[Session]:
         match event:
 
+            # ---------- 결제 시작 ----------
+            case Event.START_PAYMENT:
+                await PaymentController.start_payment_controllers_paymentController(
+                    session,
+                )
+
+            # ---------- 결제 / 추천: 타 담당 (미배선) ----------
+            # case _ :
+            #     raise NotImplementedError(f"Event not wired: {event}")
+            
+            
             # ---------- 주문 유형 (B: 세션 생성 + 유형 설정) ----------
             case Event.SELECT_ORDER_TYPE:
                 return await SystemController.create_session_controllers_systemController(
