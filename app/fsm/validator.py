@@ -43,15 +43,10 @@ class Validator:
                 if session.order_item is None:
                     raise ValueError("ORDER_ITEM_NOT_FOUND")
 
-            case Event.SELECT_REQUIRED_OPTION:
+            # 옵션 (필수/선택 통합: order_item만 있으면 자유선택)
+            case Event.SELECT_REQUIRED_OPTION | Event.SELECT_OPTIONAL_OPTION:
                 if session.order_item is None:
                     raise ValueError("ORDER_ITEM_NOT_FOUND")
-
-            case Event.SELECT_OPTIONAL_OPTION:
-                if session.order_item is None:
-                    raise ValueError("ORDER_ITEM_NOT_FOUND")
-                if session.order_item.status != OrderItemStatus.ASKING_OPTIONAL_OPTION:
-                    raise ValueError("INVALID_ORDER_ITEM_STATE")
 
             case Event.SKIP_OPTIONAL_OPTION:
                 if session.order_item is None:

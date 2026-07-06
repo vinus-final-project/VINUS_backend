@@ -21,8 +21,8 @@ class OrderController:
 
     # ------------------------------------------------------------------
     # create_order_item : 현재 주문(OrderItem) 생성
-    #   - 수량은 미지정(None) → set_quantity 에서 입력
-    #   - 필수옵션 유무로 시작 상태 분기
+    #   - 수량 미지정(None) / 필수옵션 유무로 시작 상태 분기
+    #   - current_menu 스냅샷 저장
     # ------------------------------------------------------------------
     @staticmethod
     async def create_order_item_controllers_orderController(
@@ -30,20 +30,16 @@ class OrderController:
         session: Session,
         menu_id: int,
     ) -> None:
-        """OrderItem 생성 (수량 미지정 / 필수옵션 유무로 시작 상태 분기)"""
+        """OrderItem 생성"""
 
-        # 이미 작성 중인 주문이 있으면 차단
         if session.order_item is not None:
             raise ValueError("OrderItem already exists.")
 
-        # 메뉴 조회 (존재 확인 + 필수옵션 유무 판단)
         menu = await Menus.get_single_menu_detail_services_menus(
             db=db,
             m_id=menu_id,
         )
 
-        # 필수 옵션 그룹이 있으면 필수옵션 단계,
-        # 없으면 바로 선택옵션 단계로 시작
         has_required = any(
             group["og_required"] for group in menu["option_groups"]
         )
@@ -57,19 +53,20 @@ class OrderController:
             menu_id=menu_id,
             status=initial_status,
         )
-        session.current_menu = menu                 
-
+        session.current_menu = menu
 
     # ------------------------------------------------------------------
-    # select_required_option : 필수 옵션 선택
-    #   → 모든 필수 그룹이 채워지면 status=ASKING_OPTIONAL_OPTION
+    # select_option : 옵션 선택 (필수/선택 구분 없이, 교체/토글)
+    #   - 단일선택 그룹(og_max==1) : 교체 (같은 옵션 재선택 시 해제)
+    #   - 다중선택 그룹(og_max>1)  : 토글 (있으면 제거 / 없으면 추가, 꽉차면 거절)
+    #   - status 제한 없음 (order_item만 있으면 아무 옵션이나 자유선택)
     # ------------------------------------------------------------------
-    @staticmethod   
-    async def select_required_option_controllers_orderController(
+    @staticmethod
+    async def select_option_controllers_orderController(
         session: Session,
         option_id: int,
     ) -> None:
-        """필수 옵션 선택 (메뉴는 세션 스냅샷 사용)"""
+        """옵션 선택 — 교체/토글 (필수·선택 자유선택)"""
 
         if session.order_item is None:
             raise ValueError("OrderItem not found.")
@@ -82,20 +79,23 @@ class OrderController:
         if group is None:
             raise ValueError("Option not found.")
 
-        if not group["og_required"]:
-            raise ValueError("OptionGroup is not required.")
-
         og_id = group["og_id"]
         selected = session.order_item.selected_options.setdefault(og_id, [])
 
         if option_id in selected:
-            raise ValueError("Option already selected.")
-        if len(selected) >= group["og_max"]:
-            raise ValueError("Maximum selectable options exceeded.")
+            # 이미 선택됨 → 해제(토글 오프)
+            selected.remove(option_id)
+        elif group["og_max"] == 1:
+            # 단일선택 그룹 → 교체
+            selected.clear()
+            selected.append(option_id)
+        else:
+            # 다중선택 그룹 → 추가 (꽉 차면 거절)
+            if len(selected) >= group["og_max"]:
+                raise ValueError("Maximum selectable options exceeded.")
+            selected.append(option_id)
 
-        selected.append(option_id)
-
-        # 모든 필수 그룹이 채워지면 다음 단계(선택옵션)로
+        # 필수 그룹 전부 채워지면 다음 단계(선택옵션)로 상태 갱신
         all_required_selected = True
         for g in menu["option_groups"]:
             if not g["og_required"]:
@@ -115,52 +115,14 @@ class OrderController:
         session: Session,
         quantity: int,
     ) -> None:
-        """주문 수량 설정 (언제든 변경 가능, status 변경 없음)"""
+        """주문 수량 설정"""
 
         if session.order_item is None:
             raise ValueError("OrderItem not found.")
         if quantity < 1:
             raise ValueError("Quantity must be greater than 0.")
 
-        # 수량은 값만 갱신 — 흐름 단계에 영향 없음
         session.order_item.quantity = quantity
-
-    # ------------------------------------------------------------------
-    # select_optional_option : 선택 옵션 선택 (og_max 까지 누적, 상태 유지)
-    # ------------------------------------------------------------------
-    @staticmethod
-    async def select_optional_option_controllers_orderController(
-        session: Session,
-        option_id: int,
-    ) -> None:
-        """선택 옵션 선택 (메뉴는 세션 스냅샷 사용)"""
-
-        if session.order_item is None:
-            raise ValueError("OrderItem not found.")
-
-        if session.order_item.status != OrderItemStatus.ASKING_OPTIONAL_OPTION:
-            raise ValueError("Invalid order item state.")
-
-        menu = session.current_menu
-        if menu is None:
-            raise ValueError("Current menu not loaded.")
-
-        group = OrderController._find_group_by_option(menu, option_id)
-        if group is None:
-            raise ValueError("Option not found.")
-
-        if group["og_required"]:
-            raise ValueError("OptionGroup is required.")
-
-        og_id = group["og_id"]
-        selected = session.order_item.selected_options.setdefault(og_id, [])
-
-        if option_id in selected:
-            raise ValueError("Option already selected.")
-        if len(selected) >= group["og_max"]:
-            raise ValueError("Maximum selectable options exceeded.")
-
-        selected.append(option_id)
 
     # ------------------------------------------------------------------
     # complete_order_item : 작성 완료 (필수/min/max + 수량 검증 후 COMPLETE)
@@ -169,7 +131,7 @@ class OrderController:
     async def complete_order_item_controllers_orderController(
         session: Session,
     ) -> None:
-        """작성 완료 (메뉴는 세션 스냅샷 사용, 필수/min/max + 수량 검증)"""
+        """현재 주문(OrderItem) 작성 완료"""
 
         if session.order_item is None:
             raise ValueError("OrderItem not found.")
@@ -210,4 +172,4 @@ class OrderController:
             raise ValueError("OrderItem not found.")
 
         session.order_item = None
-        session.current_menu = None       
+        session.current_menu = None
