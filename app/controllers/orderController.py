@@ -72,6 +72,7 @@ class OrderController:
 
         session.order_item = OrderItem(
             menu_id=menu_id,
+            quantity=1,
             status=initial_status,
         )
         session.current_menu = menu  # 메뉴 스냅샷 저장
@@ -210,8 +211,8 @@ class OrderController:
                     raise ValueError(f"Option limit exceeded : {group['og_name']}")
 
         # 수량 입력 여부 확인 (반드시 set_quantity 를 거쳐야 함)
-        if session.order_item.quantity is None:
-            raise ValueError("Quantity not selected.")
+        # if session.order_item.quantity is None:
+        #     raise ValueError("Quantity not selected.")
 
         session.order_item.status = OrderItemStatus.COMPLETE
 
