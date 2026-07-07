@@ -5,6 +5,8 @@ from app.db.crud.voice import Voice as VoiceCrud          # 4번 줄
 
 
 class Voice:
+
+    # R - 보이스 코드로 음성 데이터 조회 및 검증
     @staticmethod
     async def get_voice_by_code_services_voice(v_code: str, db: AsyncSession):
         db_voice = await VoiceCrud.get_voice_by_code_crud_voice(db, v_code=v_code)

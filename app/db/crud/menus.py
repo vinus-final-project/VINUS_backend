@@ -8,6 +8,8 @@ from app.db.models.optionGroups import OptionGroups
 
 
 class Menus:
+
+    # R - 카테고리로 메뉴 조회
     @staticmethod
     async def get_menus_by_category_crud_menus(db: AsyncSession, c_id: int):
         query = (
@@ -16,7 +18,8 @@ class Menus:
         )
         result = await db.execute(query)
         return result.scalars().all()
-
+    
+    # R - 메뉴 상세 조회
     @staticmethod
     async def get_menu_detail_crud_menus(db: AsyncSession, m_id: int):
         query = (

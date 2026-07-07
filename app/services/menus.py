@@ -3,6 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.crud.menus import Menus as MenusCrud
 
 class Menus:
+
+    # R - 특정 카테고리의 메뉴 목록 조회
     @staticmethod
     async def get_menus_list_by_category_services_menus(c_id: int, db: AsyncSession):
         # [메뉴 조회 API]
@@ -20,6 +22,7 @@ class Menus:
             
         return {"menus": response_menus}
 
+    # R - 메뉴 단일 상세 정보 조회 (알레르기, 성분, 옵션 포함)
     @staticmethod
     async def get_single_menu_detail_services_menus(m_id: int, db: AsyncSession):
         # [메뉴 상세 조회 API]

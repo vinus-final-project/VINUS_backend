@@ -11,6 +11,7 @@ from app.memory.session.sessionCrud import SessionCrud
 
 class Payment:
 
+    # C - 결제 승인 요청 처리 (토스 API 연동 및 상태 변경)
     @staticmethod
     async def confirm_services_payment(
         db: AsyncSession,

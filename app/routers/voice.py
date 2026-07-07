@@ -8,6 +8,7 @@ from app.services.voice import Voice
 router = APIRouter(prefix="/voices", tags=["Voices"])
 
 
+# R - 보이스 코드로 음성 데이터 조회
 @router.get("/{v_code}", response_model=VoiceRead, status_code=status.HTTP_200_OK)
 async def read_voice_routers_voice(v_code: str, db: AsyncSession = Depends(get_db)):
     return await Voice.get_voice_by_code_services_voice(db, v_code)
