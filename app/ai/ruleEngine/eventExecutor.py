@@ -66,7 +66,9 @@ class EventExecutor:
             fsm_state=session.fsm_state,
             order_type=session.order_type,
             order_item=session.order_item,
+            current_menu=session.current_menu,
             cart=session.cart,
+            total_price=sum(ci.unit_price * ci.quantity for ci in session.cart),
             recommendation_list=session.recommendation_list,
             error_code=None,
             session_end=ended,
@@ -88,7 +90,11 @@ class EventExecutor:
             fsm_state=session.fsm_state if session else FSMState.INIT,
             order_type=session.order_type if session else None,
             order_item=session.order_item if session else None,
+            current_menu=session.current_menu if session else None,
             cart=session.cart if session else [],
+            total_price=(
+                sum(ci.unit_price * ci.quantity for ci in session.cart) if session else 0
+            ),
             recommendation_list=(
                 session.recommendation_list if session else []
             ),

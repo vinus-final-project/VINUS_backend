@@ -16,6 +16,7 @@ from app.memory.session.session import Session
 from app.controllers.orderController import OrderController
 from app.controllers.cartController import CartController
 from app.controllers.systemController import SystemController
+from app.controllers.paymentController import PaymentController
 
 
 class Dispatcher:
@@ -88,18 +89,16 @@ class Dispatcher:
                     session,
                 )
 
-            # ---------- 옵션 ----------
-            case Event.SELECT_REQUIRED_OPTION:
-                await OrderController.select_required_option_controllers_orderController(
-                    db=db, session=session, option_id=params["option_id"],
+            # ---------- 옵션 (필수/선택 통합: 교체/토글) ----------
+            case Event.SELECT_REQUIRED_OPTION | Event.SELECT_OPTIONAL_OPTION:
+                await OrderController.select_option_controllers_orderController(
+                    session=session, option_id=params["option_id"],
                 )
-            case Event.SELECT_OPTIONAL_OPTION:
-                await OrderController.select_optional_option_controllers_orderController(
-                    db=db, session=session, option_id=params["option_id"],
-                )
+
+            # ---------- 옵션 종료(완료) → 카트 이동 ----------
             case Event.SKIP_OPTIONAL_OPTION:
                 await OrderController.complete_order_item_controllers_orderController(
-                    db=db, session=session,
+                    session,
                 )
                 await CartController.add_to_cart_controllers_cartController(
                     session=session, order_item=session.order_item,
@@ -129,6 +128,12 @@ class Dispatcher:
                     db=db, menu_id=params["menu_id"],
                 )
 
+            # ---------- 결제 시작 ----------
+            case Event.START_PAYMENT:
+                await PaymentController.start_payment_controllers_paymentController(
+                    session,
+                )
+
             # ---------- 세션 종료 ----------
             case Event.CANCEL_SESSION:
                 await SystemController.cancel_session_controllers_systemController(
@@ -139,7 +144,7 @@ class Dispatcher:
                     session,
                 )
 
-            # ---------- 결제 / 추천: 타 담당 (미배선) ----------
+            # ---------- 결제완료/취소·추천: 타 담당 (미배선) ----------
             case _:
                 raise NotImplementedError(f"Event not wired: {event}")
 

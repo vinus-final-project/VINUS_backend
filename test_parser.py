@@ -27,7 +27,7 @@ async def main():
     for text in test_cases:
         print("=" * 50)
         print(f"입력: {text}")
-        await RuleParser.parse_ruleengine_ruleparser(text)
+        await RuleParser.parse_ruleEngine_ruleParser(text)
     print("=" * 50)
 
 
