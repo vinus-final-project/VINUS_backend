@@ -1,8 +1,13 @@
 # app/ai/ruleEngine/ruleParser.py
-"""Rule Parser : NormalizeResult → ParseResult.
+"""Rule Parser : NormalizeResult → ParseResult. (옵션 +/- 누적 모델 대응)
 
-시스템 정책: 메뉴 1개 / Intent 1개 / 행동 1개.
-다중 메뉴·해석 불가는 예외로 위임 → 안내 문구 또는 LLM.
+entities(ORDER):
+  menu            : m_id
+  quantity        : int (메뉴 잔 수)
+  required_option : [ "ICE", "라지" ]              # 단일선택(교체)
+  optional_option : [ {"value","count","action"} ] # 누적 +/- (ADD/REMOVE)
+  skip_optional   : True
+op_id 해석·이벤트(SELECT_OPTION/DESELECT_OPTION) 매핑은 RuleEngine 담당.
 """
 
 import re
@@ -16,30 +21,27 @@ from app.ai.ruleEngine import rules
 class RuleParser:
 
     @staticmethod
-    def parse_ruleEngine_ruleParser(
-        normalize_result: NormalizeResult,
-    ) -> ParseResult:
-        session_id = normalize_result.session_id
-        text = (normalize_result.text or "").strip()
-
+    def parse_ruleEngine_ruleParser(nr: NormalizeResult) -> ParseResult:
+        session_id = nr.session_id
+        text = (nr.text or "").strip()
         if not text:
             raise rules.ParseFailedError(rules.MSG_PARSE_FAILED, reason="EMPTY_TEXT")
 
         # 1) 메뉴 감지 — 다중 메뉴 차단
-        menu_ids = RuleParser._find_menus_ruleEngine_ruleParser(text)
+        menu_spans = RuleParser._find_menus(text)
+        menu_ids = [mid for (_, _, mid) in menu_spans]
         if len(menu_ids) >= 2:
             raise rules.MultipleMenuError(rules.MSG_MULTIPLE_MENU, reason="MULTIPLE_MENU")
 
         # 2) Intent + Entity
-        intent, entities = RuleParser._resolve_intent_ruleEngine_ruleParser(text, menu_ids)
-        return ParseResult(
-            session_id=session_id, intent=intent, entities=entities, source="RULE",
-        )
+        intent, entities = RuleParser._resolve_intent(text, menu_ids, menu_spans)
+        return ParseResult(session_id=session_id, intent=intent,
+                           entities=entities, source="RULE")
 
-    # 메뉴 감지 : 긴 이름 우선 + 스팬 제외
+    # 메뉴 감지: 긴 이름 우선 + 스팬 제외 → [(start, end, m_id)]
     @staticmethod
-    def _find_menus_ruleEngine_ruleParser(text: str) -> List[int]:
-        matched: List[Tuple[int, int]] = []
+    def _find_menus(text: str) -> List[Tuple[int, int, int]]:
+        found: List[Tuple[int, int, int]] = []
         occupied: List[Tuple[int, int]] = []
         for name in rules.MENU_NAMES_BY_LEN:
             start = 0
@@ -49,23 +51,23 @@ class RuleParser:
                     break
                 end = idx + len(name)
                 if not any(idx < oe and os_ < end for (os_, oe) in occupied):
-                    matched.append((idx, rules.MENU_DICTIONARY[name]))
+                    found.append((idx, end, rules.MENU_DICTIONARY[name]))
                     occupied.append((idx, end))
                 start = idx + 1
-        matched.sort(key=lambda x: x[0])
-        return [m_id for (_, m_id) in matched]
+        found.sort(key=lambda x: x[0])
+        return found
 
-    # Intent 판별 (구체적 → 일반)
+    # Intent 판별
     @staticmethod
-    def _resolve_intent_ruleEngine_ruleParser(
-        text: str, menu_ids: List[int],
+    def _resolve_intent(
+        text: str, menu_ids: List[int], menu_spans: List[Tuple[int, int, int]],
     ) -> Tuple[str, Dict[str, Any]]:
 
         if not menu_ids and any(k in text for k in rules.SESSION_CANCEL_KEYWORDS):
             return "SESSION", {"action": "CANCEL"}
-        for keyword, order_type in rules.ORDER_TYPE_KEYWORDS.items():
-            if keyword in text:
-                return "SESSION", {"order_type": order_type}
+        for kw, ot in rules.ORDER_TYPE_KEYWORDS.items():
+            if kw in text:
+                return "SESSION", {"order_type": ot}
 
         if any(k in text for k in rules.PAYMENT_KEYWORDS):
             return "PAYMENT", {"action": "START"}
@@ -88,43 +90,90 @@ class RuleParser:
             return "RECOMMEND", {"action": "REQUEST", "condition": text}
 
         if any(k in text for k in rules.INFO_KEYWORDS):
-            entities: Dict[str, Any] = {"type": "MENU"}
+            e: Dict[str, Any] = {"type": "MENU"}
             if menu_ids:
-                entities["menu"] = menu_ids[0]
-            return "INFO", entities
+                e["menu"] = menu_ids[0]
+            return "INFO", e
 
         if not menu_ids and any(k in text for k in rules.SKIP_OPTIONAL_KEYWORDS):
             return "ORDER", {"skip_optional": True}
 
-        if menu_ids:
-            entities = {"menu": menu_ids[0]}
-            q = RuleParser._extract_quantity_ruleEngine_ruleParser(text)
-            if q is not None:
-                entities["quantity"] = q
-            req = [v for k, v in rules.REQUIRED_OPTION_KEYWORDS.items() if k in text]
-            if req:
-                entities["required_option"] = req
-            opt = [v for k, v in rules.OPTIONAL_OPTION_KEYWORDS.items() if k in text]
-            if opt:
-                entities["optional_option"] = opt
-            return "ORDER", entities
+        # --- ORDER : 옵션/수량 흐름 ---
+        # 메뉴 스팬을 지운 작업용 텍스트(옵션·수량 오검출 방지)
+        work = RuleParser._blank_spans(text, [(s, e) for (s, e, _) in menu_spans])
 
-        # 메뉴 없이 옵션/수량만 (필수옵션 답변 흐름)
-        req = [v for k, v in rules.REQUIRED_OPTION_KEYWORDS.items() if k in text]
-        if req:
-            return "ORDER", {"required_option": req}
-        q = RuleParser._extract_quantity_ruleEngine_ruleParser(text)
-        if q is not None:
-            return "ORDER", {"quantity": q}
+        entities: Dict[str, Any] = {}
+        if menu_ids:
+            entities["menu"] = menu_ids[0]
+
+        required = RuleParser._extract_required(work)
+        if required:
+            entities["required_option"] = required
+
+        optional, work = RuleParser._extract_optional(work)
+        if optional:
+            entities["optional_option"] = optional
+
+        quantity = RuleParser._extract_quantity(work)
+        if quantity is not None:
+            entities["quantity"] = quantity
+
+        if entities:
+            return "ORDER", entities
 
         raise rules.ParseFailedError(rules.MSG_PARSE_FAILED, reason="NO_RULE_MATCHED")
 
+    # 필수 옵션(단일, 교체) → 값 리스트
     @staticmethod
-    def _extract_quantity_ruleEngine_ruleParser(text: str) -> Optional[int]:
-        for word, value in rules.KOREAN_NUMBER.items():
-            if word in text:
-                return value
-        m = re.search(r"(\d+)\s*(잔|개|컵)", text)  # '개/잔/컵' 붙은 숫자만 수량
+    def _extract_required(work: str) -> List[str]:
+        out: List[str] = []
+        for kw, val in rules.REQUIRED_OPTION_KEYWORDS.items():
+            if kw in work and val not in out:
+                out.append(val)
+        return out
+
+    # 선택 옵션(누적 +/-) → [{value, count, action}], 처리한 스팬은 blank
+    @staticmethod
+    def _extract_optional(work: str) -> Tuple[List[Dict[str, Any]], str]:
+        out: List[Dict[str, Any]] = []
+        seen = set()
+        for kw, val in rules.OPTIONAL_OPTION_KEYWORDS.items():
+            idx = work.find(kw)
+            if idx == -1 or val in seen:
+                continue
+            window = work[idx: idx + 8]                 # 키워드 뒤 짧은 구간
+            action = ("REMOVE" if any(r in window for r in rules.OPTION_REMOVE_KEYWORDS)
+                      else "ADD")
+            count = RuleParser._number_in(window) or 1
+            out.append({"value": val, "count": count, "action": action})
+            seen.add(val)
+            work = work[:idx] + " " * (idx + 8 - idx) + work[idx + 8:]  # 스팬 blank
+        return out, work
+
+    # 메뉴 수량: 남은 텍스트에서 한글수사 / 숫자+(잔·컵·개)
+    @staticmethod
+    def _extract_quantity(work: str) -> Optional[int]:
+        for word, v in rules.KOREAN_NUMBER.items():
+            if word in work:
+                return v
+        m = re.search(r"(\d+)\s*(잔|컵|개)", work)
+        return int(m.group(1)) if m else None
+
+    # 구간(윈도우) 안 숫자(아라비아/한글수사) → int
+    @staticmethod
+    def _number_in(s: str) -> Optional[int]:
+        m = re.search(r"(\d+)", s)
         if m:
             return int(m.group(1))
+        for word, v in rules.KOREAN_NUMBER.items():
+            if word in s:
+                return v
         return None
+
+    @staticmethod
+    def _blank_spans(text: str, spans: List[Tuple[int, int]]) -> str:
+        chars = list(text)
+        for (s, e) in spans:
+            for i in range(s, min(e, len(chars))):
+                chars[i] = " "
+        return "".join(chars)

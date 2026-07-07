@@ -1,11 +1,5 @@
 # app/ai/ruleEngine/rules.py
-"""Rule 정의 : Rule Parser/Engine 이 쓰는 사전·키워드·예외.
-
-- 메뉴 사전은 RapidFuzz 와 동일한 menus.csv 에서 로드.
-- Intent/Entity 키워드는 Rule ENGINE 명세서 R001~R016.
-- 규칙으로 확정 불가(다중 메뉴/다중 Intent/해석 불가)는 예외로 상위 위임
-  → 안내 문구 또는 LLM 경로.
-"""
+"""Rule Parser 사전·키워드·예외. (현재 코드 기준: 옵션 +/- 누적 모델)"""
 
 import csv
 import os
@@ -16,7 +10,6 @@ _MENUS_CSV = os.path.join(_BASE_DIR, "menus.csv")
 
 
 def _load_menu_dictionary() -> Dict[str, int]:
-    """menus.csv → {표준 메뉴명: m_id}"""
     result: Dict[str, int] = {}
     if not os.path.exists(_MENUS_CSV):
         return result
@@ -29,69 +22,51 @@ def _load_menu_dictionary() -> Dict[str, int]:
 
 
 MENU_DICTIONARY: Dict[str, int] = _load_menu_dictionary()
-# 긴 이름 우선 (부분문자열 오탐/중복 카운트 방지)
 MENU_NAMES_BY_LEN: List[str] = sorted(MENU_DICTIONARY.keys(), key=len, reverse=True)
 
-# --- Intent 키워드 (R006~R016) ---
+# --- Intent 키워드 ---
 SESSION_CANCEL_KEYWORDS = ("취소", "처음부터", "그만할")
-ORDER_TYPE_KEYWORDS = {
-    "매장": "STORE", "먹고": "STORE",
-    "포장": "TAKEOUT", "테이크아웃": "TAKEOUT", "가져갈": "TAKEOUT",
-}
+ORDER_TYPE_KEYWORDS = {"매장": "STORE", "먹고": "STORE", "마시고": "STORE",
+                       "포장": "TAKEOUT", "테이크아웃": "TAKEOUT", "가져갈": "TAKEOUT", "갖고": "TAKEOUT", "들고": "TAKEOUT"}
 PAYMENT_KEYWORDS = ("결제", "계산", "지불")
 CART_CLEAR_KEYWORDS = ("전체 삭제", "다 빼", "비워", "다 지워")
-CART_INCREASE_KEYWORDS = ("하나 더", "더 추가", "증가", "늘려")
+CART_INCREASE_KEYWORDS = ("하나 더", "더 담", "증가", "늘려")
 CART_DECREASE_KEYWORDS = ("하나 빼", "감소", "줄여")
 CART_REMOVE_KEYWORDS = ("삭제", "빼줘", "제거")
 CART_SHOW_KEYWORDS = ("장바구니", "담은", "카트")
 RECOMMEND_ACCEPT_KEYWORDS = ("그걸로", "그거로", "추천 메뉴")
 RECOMMEND_REQUEST_KEYWORDS = ("추천",)
 INFO_KEYWORDS = ("뭐 있어", "메뉴 알려", "무슨 메뉴", "설명")
-SKIP_OPTIONAL_KEYWORDS = ("안 할게", "안할래", "그대로", "없어요", "괜찮아요")
+SKIP_OPTIONAL_KEYWORDS = ("안 할게", "안할래", "그대로", "없어요", "괜찮아요", "그거면")
 
-# --- 옵션 키워드 (값=op_name 표준값; option_id 해석은 RuleEngine/DB) ---
+# --- 옵션: 필수(단일선택, 교체) — 값=표준 op 토큰 ---
 REQUIRED_OPTION_KEYWORDS = {
-    "아이스": "ICE", "차갑게": "ICE", "시원하게": "ICE",
-    "핫": "HOT", "뜨겁게": "HOT", "따뜻하게": "HOT", "따숩게": "HOT",
-    "라지": "라지", "큰거": "라지",
-    "레귤러": "레귤러", "작은": "레귤러",
+    "아이스": "ICE", "차갑": "ICE", "시원": "ICE", "얼음": "ICE",
+    "핫": "HOT", "뜨겁": "HOT", "따뜻": "HOT", "따숩": "HOT", "따신": "HOT",
+    "라지": "라지", "큰": "라지",
+    "레귤러": "레귤러", "작은": "레귤러", "보통": "레귤러", "기본": "레귤러"
 }
+# --- 옵션: 선택(누적 +/-) — 값=표준 op 토큰 (op_id 해석은 RuleEngine) ---
 OPTIONAL_OPTION_KEYWORDS = {
-    "샷 두": "샷 2개 추가", "샷 2": "샷 2개 추가",
-    "샷 추가": "샷 1개 추가", "샷추가": "샷 1개 추가", "샷 하나": "샷 1개 추가",
-    "바닐라 시럽": "바닐라 시럽", "헤이즐넛 시럽": "헤이즐넛 시럽", "카라멜 시럽": "카라멜 시럽",
-    "휘핑": "휘핑 추가",
+    "샷": "샷", "바닐라": "바닐라 시럽", "헤이즐넛": "헤이즐넛 시럽",
+    "카라멜": "카라멜 시럽", "시럽": "시럽", "휘핑": "휘핑 추가",
 }
+OPTION_REMOVE_KEYWORDS = ("빼", "제거", "말고", "없이", "취소")
 
-# --- 수량 (R002) ---
-KOREAN_NUMBER = {
-    "하나": 1, "한잔": 1, "한 잔": 1,
-    "둘": 2, "두잔": 2, "두 잔": 2, "두개": 2, "두 개": 2,
-    "셋": 3, "세잔": 3, "세 잔": 3, "넷": 4, "네잔": 4,
-    "다섯": 5,
-}
+# --- 수량/개수 한글 수사 ---
+KOREAN_NUMBER = {"하나": 1, "한": 1, "둘": 2, "두": 2, "셋": 3, "세": 3,
+                 "넷": 4, "네": 4, "다섯": 5, "여섯": 6, "일곱":7, "여덟":8, "아홉":9, "열":10}
 
-# --- 안내 문구 상수 ---
 MSG_MULTIPLE_MENU = "한 번에 한 메뉴씩 주문해 주세요."
-MSG_MULTIPLE_INTENT = "한 번에 한 가지 요청만 말씀해 주세요."
 MSG_PARSE_FAILED = "죄송해요, 다시 한 번 말씀해 주세요."
 
 
-# --- 파서/엔진 예외 : 규칙 확정 불가 → 상위(안내/LLM) 위임 ---
 class RuleParseError(Exception):
     def __init__(self, message: str, reason: str):
         super().__init__(message)
-        self.message = message   # 사용자 안내 문구(TTS/UI)
-        self.reason = reason     # 내부 사유 코드
+        self.message = message
+        self.reason = reason
 
 
-class MultipleMenuError(RuleParseError):
-    """여러 메뉴 동시 감지 (시스템 정책: 한 번에 1개)."""
-
-
-class MultipleIntentError(RuleParseError):
-    """여러 Intent 동시 감지 (L006)."""
-
-
-class ParseFailedError(RuleParseError):
-    """규칙으로 해석 불가 → LLM/안내 (L001/L002/L004)."""
+class MultipleMenuError(RuleParseError): ...
+class ParseFailedError(RuleParseError): ...
