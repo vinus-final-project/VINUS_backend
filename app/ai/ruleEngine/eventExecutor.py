@@ -18,6 +18,7 @@ from app.fsm.FSMstate import FSMState
 from app.memory.session.enums import SessionStatus
 from app.memory.session.session import Session
 from app.interface.dto.sessionResponse import ResponseType, SessionResponse
+from app.interface.dto.errorMessage import get_error_message_error_message
 
 
 class EventExecutor:
@@ -86,7 +87,7 @@ class EventExecutor:
             response_type=ResponseType.ERROR,
             session_id=session.session_id if session else "",
             success=False,
-            message=None,
+            message=get_error_message_error_message(str(exc)),
             fsm_state=session.fsm_state if session else FSMState.INIT,
             order_type=session.order_type if session else None,
             order_item=session.order_item if session else None,

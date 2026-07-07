@@ -25,11 +25,8 @@ class SessionStatus(str, Enum):
 
 # 현재 작성 중인 주문 항목(OrderItem)의 상태
 class OrderItemStatus(str, Enum):
-    SELECTING_REQUIRED_OPTION = "SELECTING_REQUIRED_OPTION"
-    SELECTING_QUANTITY = "SELECTING_QUANTITY"
-    ASKING_OPTIONAL_OPTION = "ASKING_OPTIONAL_OPTION"
-    COMPLETE = "COMPLETE"                                  # 작성 완료
-
+    IN_PROGRESS = "IN_PROGRESS"      # 작성 중 (옵션/수량 선택)
+    COMPLETE = "COMPLETE"            # 작성 완료 → 카트 이동 가능
 
 # 로그 발화 주체
 class SpeakerType(str, Enum):

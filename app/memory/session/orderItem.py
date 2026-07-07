@@ -17,4 +17,4 @@ class OrderItem(BaseModel):
     menu_id: int                                                    # 메뉴 ID
     quantity: int = 1                                             # 주문 수량
     selected_options: Dict[int,  list[int]] = Field(default_factory=dict)  # 선택된 옵션
-    status: OrderItemStatus = OrderItemStatus.SELECTING_REQUIRED_OPTION  # 작성 상태
+    status: OrderItemStatus = OrderItemStatus.IN_PROGRESS    # 작성 상태
