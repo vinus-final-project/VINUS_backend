@@ -15,6 +15,6 @@ from app.memory.session.enums import OrderItemStatus
 class OrderItem(BaseModel):
     # -- 변수 선언 ----------------------------------------------------------
     menu_id: int                                                    # 메뉴 ID
-    quantity: Optional[int] = None                                            # 주문 수량
+    quantity: int = 1                                             # 주문 수량
     selected_options: Dict[int,  list[int]] = Field(default_factory=dict)  # 선택된 옵션
     status: OrderItemStatus = OrderItemStatus.SELECTING_REQUIRED_OPTION  # 작성 상태
