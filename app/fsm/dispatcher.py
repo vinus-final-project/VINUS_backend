@@ -1,6 +1,13 @@
 """FSM Dispatcher.
 
 FSM Event를 받아 Controller를 실행하고 상태를 전이합니다.
+
+동작 순서
+1. 현재 FSM 상태 확인
+2. Transition(허용 이벤트) 확인
+3. 비-DB 선행조건 검증(validator)
+4. Event → Controller 실행
+5. 성공 시 FSM 상태 전이
 """
 
 from typing import Optional
@@ -43,10 +50,10 @@ class Dispatcher:
             )
         next_state = transitions[event]
 
-        # 2.5 비-DB 선행조건 검증
+        # 3. 비-DB 선행조건 검증
         Validator.validate_fsm_validator(session, fsm_event)
 
-        # 3. Event → Controller 실행 (세션 새로 생성되면 반환 세션 사용)
+        # 4. Event → Controller 실행 (세션 새로 생성되면 반환 세션 사용)
         session = await Dispatcher._execute_fsm_dispatcher(
             db=db,
             session=session,
@@ -54,7 +61,7 @@ class Dispatcher:
             params=params,
         )
 
-        # 4. 상태 전이
+        # 5. 상태 전이
         if session is not None and next_state is not None:
             session.fsm_state = next_state
 
@@ -89,14 +96,19 @@ class Dispatcher:
                     session,
                 )
 
-            # ---------- 옵션 (필수/선택 통합: 교체/토글) ----------
-            case Event.SELECT_REQUIRED_OPTION | Event.SELECT_OPTIONAL_OPTION:
+            # ---------- 옵션 추가 / 감소 (누적) ----------
+            case Event.SELECT_OPTION:
                 await OrderController.select_option_controllers_orderController(
+                    session=session, option_id=params["option_id"],
+                )
+            case Event.DESELECT_OPTION:
+                await OrderController.deselect_option_controllers_orderController(
                     session=session, option_id=params["option_id"],
                 )
 
             # ---------- 옵션 종료(완료) → 카트 이동 ----------
             case Event.SKIP_OPTIONAL_OPTION:
+                # 완료 검증(스냅샷 사용) → 카트로 이동(order_item 제거)
                 await OrderController.complete_order_item_controllers_orderController(
                     session,
                 )
@@ -144,7 +156,7 @@ class Dispatcher:
                     session,
                 )
 
-            # ---------- 결제완료/취소·추천: 타 담당 (미배선) ----------
+            # ---------- 결제완료/취소 · 추천: 타 담당 (미배선) ----------
             case _:
                 raise NotImplementedError(f"Event not wired: {event}")
 

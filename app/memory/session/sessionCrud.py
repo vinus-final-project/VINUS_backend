@@ -12,6 +12,7 @@
 
 from typing import List, Optional
 from uuid import uuid4
+from collections import Counter
 
 from app.memory.session.enums import (
     OrderItemStatus,
@@ -40,11 +41,14 @@ class SessionCrud:
         SessionMemory.sessions[new_session_id] = new_session
         return new_session
 
+    # ------------------------------------------------------------------
     # C - 카트에 주문 항목 추가
     #     카트 저장 규칙
     #       1) status == COMPLETE 일 때만 추가 가능
-    #       2) 동일 메뉴 + 동일 옵션 → 기존 CartItem 의 quantity 증가
-    #       3) 동일 메뉴 + 다른 옵션 → 신규 CartItem 생성
+    #       2) 동일 메뉴 + 동일 옵션 → 기존 CartItem 의 수량 누적
+    #       3) 그 외 → current_menu 스냅샷으로 이름/가격 조립해 신규 생성
+    #          (누적 옵션은 개수를 세어 qty 로 압축, 가격은 op_price×개수)
+    # ------------------------------------------------------------------
     @staticmethod
     async def add_cart_item_session_sessionCrud(
         session: Session,
@@ -65,7 +69,7 @@ class SessionCrud:
                 cart_item.quantity += pending_item.quantity
                 return
 
-       # 3) 신규 CartItem 생성 — current_menu 스냅샷에서 이름/가격 조립
+        # 3) 신규 CartItem 생성 — current_menu 스냅샷에서 이름/가격 조립
         menu = session.current_menu
         if menu is None:
             raise ValueError("Current menu not loaded.")
@@ -79,7 +83,9 @@ class SessionCrud:
             )
             if group is None:
                 continue
-            for op_id in op_ids:
+
+            # 같은 op_id 개수 세기 (누적 옵션 → qty)
+            for op_id, qty in Counter(op_ids).items():
                 op = next(
                     (o for o in group["options"] if o["op_id"] == op_id),
                     None,
@@ -91,11 +97,13 @@ class SessionCrud:
                         op_id=op["op_id"],
                         op_name=op["op_name"],
                         op_price=op["op_price"],
+                        qty=qty,
                     )
                 )
-                option_price_sum += op["op_price"]
+                # 옵션 추가금 = 1개 가격 × 개수
+                option_price_sum += op["op_price"] * qty
 
-        # 1개당 가격 = 메뉴 가격 + 옵션 추가금 합
+        # 1개당 가격 = 메뉴 가격 + 옵션 추가금 합(개수 반영)
         unit_price = menu["m_price"] + option_price_sum
 
         session.cart.append(
