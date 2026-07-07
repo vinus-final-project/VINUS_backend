@@ -87,6 +87,20 @@ async def remove_cart_item_routers_cart(
         db=db, session=session, events=[event],
     )
 
+# ------------------------------------------------------------------
+# D - 장바구니 전체 삭제 → CLEAR_CART
+# ------------------------------------------------------------------
+@router.delete("/{session_id}/cart", response_model=SessionResponse, status_code=status.HTTP_200_OK)
+async def clear_cart_routers_cart(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> SessionResponse:
+    session = await _get_session_or_404(session_id)
+    event = FSMEvent(type=Event.CLEAR_CART, parameters={})
+    return await EventExecutor.execute_ruleEngine_eventExecutor(
+        db=db, session=session, events=[event],
+    )
+
 
 # ---------------------------------------------------------------------------
 # U - 장바구니 항목 수량 증감
