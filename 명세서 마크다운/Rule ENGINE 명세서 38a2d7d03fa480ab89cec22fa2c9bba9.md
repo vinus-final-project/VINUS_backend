@@ -86,8 +86,8 @@ Rule Parser 정책
 | Engine ID | Intent | Entity 조건 | 생성 FSM Event | 실행 순서 | 실패 시 |
 | --- | --- | --- | --- | --- | --- |
 | E001 | ORDER | menu | SELECT_MENU | 1 | 중단 |
-| E002 | ORDER | quantity | SET_QUANTITY | 2 | 중단 |
-| E003 | ORDER | required_option | SELECT_REQUIRED_OPTION | 3 | 중단 |
+| E002 | ORDER | required_option | SELECT_REQUIRED_OPTION | 2 | 중단 |
+| E003 | ORDER | quantity | SET_QUANTITY | 3 | 중단 |
 | E004 | ORDER | optional_option | SELECT_OPTIONAL_OPTION | 4 | 중단 |
 | E005 | ORDER | skip_optional=true | SKIP_OPTIONAL_OPTION | 4 | 중단 |
 | E006 | CART | action=SHOW | SHOW_CART | 1 | 중단 |
