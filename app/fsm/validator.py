@@ -8,7 +8,6 @@ transition 표(상태 전이)와 별개로, 세션 데이터/파라미터 수준
 from typing import Optional
 
 from app.fsm.event import Event, FSMEvent
-from app.memory.session.enums import OrderItemStatus
 from app.memory.session.session import Session
 
 
@@ -52,12 +51,11 @@ class Validator:
                 if session.order_item is None:
                     raise ValueError("ORDER_ITEM_NOT_FOUND")
 
-            # 옵션 종료(완료): order_item 존재 + status==ASKING_OPTIONAL_OPTION
+            # 옵션 종료(완료): order_item 존재만 확인
+            #   - 필수 미완료 검증은 complete_order_item 에서 REQUIRED_OPTION_MISSING 처리
             case Event.SKIP_OPTIONAL_OPTION:
                 if session.order_item is None:
                     raise ValueError("ORDER_ITEM_NOT_FOUND")
-                if session.order_item.status != OrderItemStatus.ASKING_OPTIONAL_OPTION:
-                    raise ValueError("INVALID_ORDER_ITEM_STATE")
 
             # 장바구니 조회 / 비우기: 선행조건 없음
             case Event.SHOW_CART | Event.CLEAR_CART:

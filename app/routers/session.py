@@ -61,3 +61,57 @@ async def get_session_routers_session(
         session=session,
         events=[],
     )
+# D - 세션 만료/종료 (EXPIRE_SESSION 이벤트로 메모리에서 제거)
+@router.delete(
+    "/{session_id}",
+    response_model=SessionResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def expire_session_routers_session(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> SessionResponse:
+    # 세션 조회 (없으면 404)
+    try:
+        session = await SessionCrud.get_session_session_sessionCrud(session_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="세션을 찾을 수 없습니다.",
+        )
+
+    # EXPIRE_SESSION → 상태 EXPIRED 표기 후 메모리에서 삭제
+    event = FSMEvent(type=Event.EXPIRE_SESSION, parameters={})
+    return await EventExecutor.execute_ruleEngine_eventExecutor(
+        db=db,
+        session=session,
+        events=[event],
+    )
+
+
+# D - 세션 취소 ("처음으로" / 전체 주문 취소 → CANCEL_SESSION)
+@router.post(
+    "/{session_id}/cancel",
+    response_model=SessionResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def cancel_session_routers_session(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> SessionResponse:
+    # 세션 조회 (없으면 404)
+    try:
+        session = await SessionCrud.get_session_session_sessionCrud(session_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="세션을 찾을 수 없습니다.",
+        )
+
+    # CANCEL_SESSION → 상태 CANCELED 표기 후 메모리에서 삭제
+    event = FSMEvent(type=Event.CANCEL_SESSION, parameters={})
+    return await EventExecutor.execute_ruleEngine_eventExecutor(
+        db=db,
+        session=session,
+        events=[event],
+    )
