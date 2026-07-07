@@ -21,10 +21,10 @@ class Event(str, Enum):
     CANCEL_ORDER_ITEM = "CANCEL_ORDER_ITEM"
 
     # ------------------------------------------------------------------
-    # 옵션
+    # 옵션 (추가/감소)
     # ------------------------------------------------------------------
-    SELECT_REQUIRED_OPTION = "SELECT_REQUIRED_OPTION"
-    SELECT_OPTIONAL_OPTION = "SELECT_OPTIONAL_OPTION"
+    SELECT_OPTION = "SELECT_OPTION"       # 옵션 추가 (+1)
+    DESELECT_OPTION = "DESELECT_OPTION"   # 옵션 감소 (-1)
     SKIP_OPTIONAL_OPTION = "SKIP_OPTIONAL_OPTION"
 
     # ------------------------------------------------------------------

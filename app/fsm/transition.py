@@ -29,8 +29,9 @@ TRANSITIONS = {
         Event.SET_QUANTITY: FSMState.ORDERING,
         Event.CANCEL_ORDER_ITEM: FSMState.ORDERING,
 
-        Event.SELECT_REQUIRED_OPTION: FSMState.ORDERING,
-        Event.SELECT_OPTIONAL_OPTION: FSMState.ORDERING,
+        # 옵션 추가/감소 (누적)
+        Event.SELECT_OPTION: FSMState.ORDERING,
+        Event.DESELECT_OPTION: FSMState.ORDERING,
         Event.SKIP_OPTIONAL_OPTION: FSMState.ORDERING,
 
         Event.SHOW_CART: FSMState.ORDERING,

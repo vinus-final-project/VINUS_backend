@@ -14,7 +14,12 @@ from app.memory.session.session import Session
 class Order:
     """결제 완료 주문 영속화 (메모리 카트 → DB)"""
 
+    # ------------------------------------------------------------------
     # C - 결제 완료 주문 저장 (한 트랜잭션)
+    #     메모리 카트 → orders / orderMenus / orderMenuOptions
+    #                 + sessions / sessionLogs
+    #     누적 옵션(qty>1)은 orderMenuOptions 에 개수만큼 행을 생성한다.
+    # ------------------------------------------------------------------
     @staticmethod
     async def save_paid_order_crud_order(
         db: AsyncSession,
@@ -60,13 +65,15 @@ class Order:
             db.add(db_order_menu)
             await db.flush()   # o_m_id 확보
 
+            # 옵션 — 누적 개수(qty)만큼 행 생성
             for opt in cart_item.options:
-                db.add(
-                    OrderMenuOptions(
-                        o_m_id=db_order_menu.o_m_id,
-                        op_id=opt.op_id,
+                for _ in range(opt.qty):
+                    db.add(
+                        OrderMenuOptions(
+                            o_m_id=db_order_menu.o_m_id,
+                            op_id=opt.op_id,
+                        )
                     )
-                )
 
         # 4) sessionLogs (로그 버퍼 flush)
         for log in session.logs:

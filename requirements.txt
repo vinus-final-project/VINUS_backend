@@ -1,38 +1,38 @@
-# ===== DB =====
-SQLAlchemy==2.0.51         # ORM (모델 정의, 쿼리)
-alembic==1.18.4            # DB 마이그레이션
-asyncmy==0.2.10            # MySQL 비동기 드라이버 (mysql+asyncmy, 앱 요청용)
-PyMySQL==1.1.1             # MySQL 동기 드라이버 (mysql+pymysql, alembic용)
-cryptography==43.0.3       # PyMySQL이 MySQL 8 인증(caching_sha2_password)에 사용
-greenlet==3.5.2            # SQLAlchemy async 실행에 필요
+# ===== Database =====
+SQLAlchemy==2.0.51         # ORM (models and queries)
+alembic==1.18.4            # Database migrations
+asyncmy==0.2.10            # Async MySQL driver (mysql+asyncmy)
+PyMySQL==1.1.1             # Sync MySQL driver (mysql+pymysql, Alembic)
+cryptography==43.0.3       # Required for MySQL 8 authentication
+greenlet==3.5.2            # Required for SQLAlchemy async
 
-# ===== 웹 서버 / API =====
-fastapi==0.138.0           # API 서버 프레임워크
-uvicorn==0.49.0            # ASGI 서버 (서버 실행)
-starlette==1.3.1           # FastAPI 기반 프레임워크 (라우팅/미들웨어)
-websockets==14.1           # WebSocket (음성 PCM 양방향 통신)
-python-multipart==0.0.20   # 파일 업로드 / 폼 데이터 처리
-h11==0.16.0                # uvicorn의 HTTP/1.1 처리
-anyio==4.14.0              # starlette의 비동기 처리
-click==8.4.1               # uvicorn CLI
-colorama==0.4.6            # 윈도우 콘솔 색상 출력
+# ===== Web Server / API =====
+fastapi==0.138.0           # FastAPI framework
+uvicorn==0.49.0            # ASGI server
+starlette==1.3.1           # FastAPI foundation
+websockets==14.1           # WebSocket support
+python-multipart==0.0.20   # Multipart/form-data support
+h11==0.16.0                # HTTP/1.1 implementation
+anyio==4.14.0              # Async compatibility layer
+click==8.4.1               # CLI utilities
+colorama==0.4.6            # Colored console output (Windows)
 
-# ===== 데이터 검증 / 설정 =====
-pydantic==2.13.4           # Request/Response 검증 (스키마)
-pydantic-settings==2.14.2  # .env 환경변수 → 설정 클래스 매핑
-pydantic_core==2.46.4      # pydantic 코어 (자동 의존)
-annotated-types==0.7.0     # pydantic이 사용하는 타입 제약
-annotated-doc==0.0.4       # 타입 어노테이션 문서화 (간접 의존)
-typing-inspection==0.4.2   # pydantic 타입 검사 (간접 의존)
-typing_extensions==4.15.0  # 타입 힌트 백포트
-python-dotenv==1.2.2       # .env 파일 로드
+# ===== Validation / Configuration =====
+pydantic==2.13.4           # Data validation
+pydantic-settings==2.14.2  # Environment settings
+pydantic_core==2.46.4      # Pydantic core library
+annotated-types==0.7.0     # Type constraints
+annotated-doc==0.0.4       # Annotation documentation
+typing-inspection==0.4.2   # Type inspection
+typing_extensions==4.15.0  # Backported typing features
+python-dotenv==1.2.2       # Load .env files
 
-# ===== STT / 음성 보정 =====
-faster-whisper==1.1.1      # STT (Whisper 음성→텍스트)
-rapidfuzz==3.10.1          # 메뉴명/옵션명 오인식 보정 (fuzzy matching)
-numpy==1.26.4              # PCM 오디오 배열 변환 (faster-whisper 의존)
+# ===== Speech-to-Text =====
+faster-whisper==1.1.1      # Whisper STT
+rapidfuzz==3.10.1          # Fuzzy string matching
+numpy==1.26.4              # Numerical arrays
 
-# ===== 템플릿 / 기타 =====
-Mako==1.3.12               # alembic 마이그레이션 템플릿 엔진
-MarkupSafe==3.0.3          # Mako가 사용하는 문자열 이스케이프
-idna==3.18                 # 국제화 도메인 이름 변환 (anyio가 사용)
+# ===== Templates / Utilities =====
+Mako==1.3.12               # Template engine
+MarkupSafe==3.0.3          # Safe string escaping
+idna==3.18                 # Internationalized domain names
