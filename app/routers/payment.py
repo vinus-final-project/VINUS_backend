@@ -14,7 +14,7 @@ router = APIRouter(prefix="/payments", tags=["Payments"])
 
 
 # 결제 시작 요청
-class PaymentStartRequest(BaseModel):
+class PaymentRequest(BaseModel):
     session_id: str
 
 
@@ -32,7 +32,7 @@ async def _get_session_or_404(session_id: str):
 # 결제 시작 → START_PAYMENT (ORDERING→PAYMENT, total_price 반환)
 @router.post("/start", response_model=SessionResponse, status_code=status.HTTP_200_OK)
 async def start_payment_routers_payment(
-    body: PaymentStartRequest,
+    body: PaymentRequest,
     db: AsyncSession = Depends(get_db),
 ) -> SessionResponse:
     session = await _get_session_or_404(body.session_id)
@@ -54,4 +54,17 @@ async def confirm_routers_payment(
         order_id=payment_data.order_id,
         payment_key=payment_data.payment_key,
         amount=payment_data.amount,
+    )
+
+
+# 결제 취소 → PAYMENT_CANCEL (PAYMENT → ORDERING)
+@router.post("/cancel", response_model=SessionResponse, status_code=status.HTTP_200_OK)
+async def cancel_payment_routers_payment(
+    body: PaymentRequest,
+    db: AsyncSession = Depends(get_db),
+) -> SessionResponse:
+    session = await _get_session_or_404(body.session_id)
+    event = FSMEvent(type=Event.PAYMENT_CANCEL, parameters={})
+    return await EventExecutor.execute_ruleEngine_eventExecutor(
+        db=db, session=session, events=[event],
     )
