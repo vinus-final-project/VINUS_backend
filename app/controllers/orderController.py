@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.menus import Menus
@@ -20,26 +21,8 @@ class OrderController:
         return None
 
     # ------------------------------------------------------------------
-    # 내부 헬퍼 : 필수 옵션 충족 여부로 order_item.status 갱신
-    #   - 필수 그룹이 모두 선택됨 → ASKING_OPTIONAL_OPTION (완료 상태면 유지)
-    #   - 하나라도 비었으면       → SELECTING_REQUIRED_OPTION
-    # ------------------------------------------------------------------
-    @staticmethod
-    def _refresh_status(order_item, menu: dict) -> None:
-        all_required = all(
-            order_item.selected_options.get(g["og_id"])
-            for g in menu["option_groups"]
-            if g["og_required"]
-        )
-        if all_required:
-            if order_item.status != OrderItemStatus.COMPLETE:
-                order_item.status = OrderItemStatus.ASKING_OPTIONAL_OPTION
-        else:
-            order_item.status = OrderItemStatus.SELECTING_REQUIRED_OPTION
-
-    # ------------------------------------------------------------------
     # create_order_item : 현재 주문(OrderItem) 생성
-    #   - 수량 미지정(None) / 필수옵션 유무로 시작 상태 분기
+    #   - 상태는 IN_PROGRESS 로 시작 (필수/선택 구분 없이 옵션 자유선택)
     #   - current_menu 스냅샷 저장
     # ------------------------------------------------------------------
     @staticmethod
@@ -48,32 +31,26 @@ class OrderController:
         session: Session,
         menu_id: int,
     ) -> None:
-        """OrderItem 생성 (수량 미지정 / 필수옵션 유무로 시작 상태 분기)"""
+        """OrderItem 생성 (IN_PROGRESS 상태로 시작)"""
 
         # 이미 작성 중인 주문이 있으면 차단
         if session.order_item is not None:
-            raise ValueError("OrderItem already exists.")
+            raise ValueError("ORDER_ITEM_EXISTS")
 
-        # 메뉴 조회 (존재 확인 + 필수옵션 유무 판단)
-        menu = await Menus.get_single_menu_detail_services_menus(
-            db=db,
-            m_id=menu_id,
-        )
-
-        # 필수 옵션 그룹이 있으면 필수옵션 단계, 없으면 바로 선택옵션 단계
-        has_required = any(
-            group["og_required"] for group in menu["option_groups"]
-        )
-        initial_status = (
-            OrderItemStatus.SELECTING_REQUIRED_OPTION
-            if has_required
-            else OrderItemStatus.ASKING_OPTIONAL_OPTION
-        )
+        # 메뉴 조회 (존재 확인)
+        #   - 서비스가 404(HTTPException) → 표준 코드 MENU_NOT_FOUND 로 변환
+        try:
+            menu = await Menus.get_single_menu_detail_services_menus(
+                db=db,
+                m_id=menu_id,
+            )
+        except HTTPException:
+            raise ValueError("MENU_NOT_FOUND")
 
         session.order_item = OrderItem(
             menu_id=menu_id,
             quantity=1,
-            status=initial_status,
+            status=OrderItemStatus.IN_PROGRESS,
         )
         session.current_menu = menu  # 메뉴 스냅샷 저장
 
@@ -81,7 +58,6 @@ class OrderController:
     # select_option : 옵션 추가 (+1, 누적)
     #   - 단일선택 그룹(og_max==1) : 교체 (온도/사이즈 등)
     #   - 다중/누적 그룹(og_max>1)  : 같은 옵션 중복 허용(개수+1), 총 개수 ≤ og_max
-    #   - status 제한 없음 (order_item만 있으면 아무 옵션이나 자유선택)
     # ------------------------------------------------------------------
     @staticmethod
     async def select_option_controllers_orderController(
@@ -92,17 +68,17 @@ class OrderController:
 
         # OrderItem 존재 확인
         if session.order_item is None:
-            raise ValueError("OrderItem not found.")
+            raise ValueError("ORDER_ITEM_NOT_FOUND")
 
-        # 메뉴 스냅샷 확인
+        # 메뉴 스냅샷 확인 (없으면 내부 상태 이상 → 방어)
         menu = session.current_menu
         if menu is None:
-            raise ValueError("Current menu not loaded.")
+            raise ValueError("INVALID_STATE")
 
         # 옵션이 속한 그룹 역추적
         group = OrderController._find_group_by_option(menu, option_id)
         if group is None:
-            raise ValueError("Option not found.")
+            raise ValueError("OPTION_NOT_FOUND")
 
         og_id = group["og_id"]
         selected = session.order_item.selected_options.setdefault(og_id, [])
@@ -114,11 +90,8 @@ class OrderController:
         else:
             # 다중/누적 그룹 → 개수 +1 (그룹 총 개수가 og_max 미만일 때만)
             if len(selected) >= group["og_max"]:
-                raise ValueError("Maximum selectable options exceeded.")
+                raise ValueError("OPTION_LIMIT_EXCEEDED")
             selected.append(option_id)  # 중복 허용 = 누적
-
-        # 필수 충족 여부로 상태 갱신
-        OrderController._refresh_status(session.order_item, menu)
 
     # ------------------------------------------------------------------
     # deselect_option : 옵션 감소 (-1)
@@ -133,17 +106,17 @@ class OrderController:
 
         # OrderItem 존재 확인
         if session.order_item is None:
-            raise ValueError("OrderItem not found.")
+            raise ValueError("ORDER_ITEM_NOT_FOUND")
 
-        # 메뉴 스냅샷 확인
+        # 메뉴 스냅샷 확인 (없으면 내부 상태 이상 → 방어)
         menu = session.current_menu
         if menu is None:
-            raise ValueError("Current menu not loaded.")
+            raise ValueError("INVALID_STATE")
 
         # 옵션이 속한 그룹 역추적
         group = OrderController._find_group_by_option(menu, option_id)
         if group is None:
-            raise ValueError("Option not found.")
+            raise ValueError("OPTION_NOT_FOUND")
 
         og_id = group["og_id"]
         selected = session.order_item.selected_options.get(og_id, [])
@@ -152,11 +125,8 @@ class OrderController:
         if option_id in selected:
             selected.remove(option_id)
 
-        # 필수 충족 여부로 상태 갱신
-        OrderController._refresh_status(session.order_item, menu)
-
     # ------------------------------------------------------------------
-    # set_quantity : 주문 수량 설정 (언제든 변경 가능, status 변경 없음)
+    # set_quantity : 주문 수량 설정 (언제든 변경 가능)
     # ------------------------------------------------------------------
     @staticmethod
     async def set_quantity_controllers_orderController(
@@ -167,16 +137,16 @@ class OrderController:
 
         # OrderItem 존재 확인
         if session.order_item is None:
-            raise ValueError("OrderItem not found.")
+            raise ValueError("ORDER_ITEM_NOT_FOUND")
         # 수량 유효성 (1개 이상)
         if quantity < 1:
-            raise ValueError("Quantity must be greater than 0.")
+            raise ValueError("INVALID_QUANTITY")
 
-        # 수량은 값만 갱신 (흐름 단계에 영향 없음)
+        # 수량은 값만 갱신
         session.order_item.quantity = quantity
 
     # ------------------------------------------------------------------
-    # complete_order_item : 작성 완료 (개수 기준 필수/min/max + 수량 검증)
+    # complete_order_item : 작성 완료 (개수 기준 필수/min/max 검증)
     # ------------------------------------------------------------------
     @staticmethod
     async def complete_order_item_controllers_orderController(
@@ -186,12 +156,12 @@ class OrderController:
 
         # OrderItem 존재 확인
         if session.order_item is None:
-            raise ValueError("OrderItem not found.")
+            raise ValueError("ORDER_ITEM_NOT_FOUND")
 
-        # 메뉴 스냅샷 확인
+        # 메뉴 스냅샷 확인 (없으면 내부 상태 이상 → 방어)
         menu = session.current_menu
         if menu is None:
-            raise ValueError("Current menu not loaded.")
+            raise ValueError("INVALID_STATE")
 
         # 옵션 그룹별 검증 (count = 중복 포함 개수)
         for group in menu["option_groups"]:
@@ -200,19 +170,13 @@ class OrderController:
 
             # 필수 그룹 미선택
             if group["og_required"] and count == 0:
-                raise ValueError(
-                    f"Required option group not selected : {group['og_name']}"
-                )
+                raise ValueError("REQUIRED_OPTION_MISSING")
             # 선택된 그룹은 개수 min/max 검사
             if count > 0:
                 if count < group["og_min"]:
-                    raise ValueError(f"Option min not met : {group['og_name']}")
+                    raise ValueError("OPTION_MIN_NOT_MET")
                 if count > group["og_max"]:
-                    raise ValueError(f"Option limit exceeded : {group['og_name']}")
-
-        # 수량 입력 여부 확인 (반드시 set_quantity 를 거쳐야 함)
-        # if session.order_item.quantity is None:
-        #     raise ValueError("Quantity not selected.")
+                    raise ValueError("OPTION_LIMIT_EXCEEDED")
 
         session.order_item.status = OrderItemStatus.COMPLETE
 
@@ -227,7 +191,7 @@ class OrderController:
 
         # OrderItem 존재 확인
         if session.order_item is None:
-            raise ValueError("OrderItem not found.")
+            raise ValueError("ORDER_ITEM_NOT_FOUND")
 
         # OrderItem + 메뉴 스냅샷 제거
         session.order_item = None

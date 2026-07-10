@@ -172,6 +172,14 @@ class SessionCrud:
     ) -> Session:
         session.session_status = SessionStatus.EXPIRED
         return session
+    
+    # D - Session 삭제 (메모리에서 완전 제거)
+    @staticmethod
+    async def delete_session_session_sessionCrud(
+        session_id: str,
+    ) -> None:
+        # 이미 없어도 조용히 통과 (pop 기본값 None)
+        SessionMemory.sessions.pop(session_id, None)
 
     # D - CartItem 삭제
     @staticmethod

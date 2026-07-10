@@ -18,6 +18,7 @@ from app.fsm.FSMstate import FSMState
 from app.memory.session.enums import SessionStatus
 from app.memory.session.session import Session
 from app.interface.dto.sessionResponse import ResponseType, SessionResponse
+from app.interface.dto.errorMessage import get_error_message_error_message
 
 
 class EventExecutor:
@@ -27,6 +28,7 @@ class EventExecutor:
         db: AsyncSession,
         session: Optional[Session],
         events: list[FSMEvent],
+        message: Optional[str] = None,          # ← 추가: 정상 안내 문구 (RuleEngine/LLM)
     ) -> SessionResponse:
         """Event List FIFO 실행 → SessionResponse"""
 
@@ -39,11 +41,16 @@ class EventExecutor:
                     fsm_event=fsm_event,
                 )
             except Exception as exc:
-                # 실패 → 즉시 중단 + 에러 응답 (Rollback 없음)
+                # 실패 → 즉시 중단 + 에러 응답 (message 무시, error_code 맵 우선)
                 return EventExecutor._build_error_ruleEngine_eventExecutor(
                     session=session,
                     exc=exc,
                 )
+
+        # 성공 → 정상 안내 문구 세팅
+        #   매 실행마다 세팅(문구 없으면 None) → 이전 턴 문구 잔류 방지
+        if session is not None:
+            session.message = message
 
         # 모든 이벤트 성공 (Event 없음도 여기로) → 정상 응답
         return EventExecutor._build_success_ruleEngine_eventExecutor(session)
@@ -86,7 +93,7 @@ class EventExecutor:
             response_type=ResponseType.ERROR,
             session_id=session.session_id if session else "",
             success=False,
-            message=None,
+            message=get_error_message_error_message(str(exc)),
             fsm_state=session.fsm_state if session else FSMState.INIT,
             order_type=session.order_type if session else None,
             order_item=session.order_item if session else None,

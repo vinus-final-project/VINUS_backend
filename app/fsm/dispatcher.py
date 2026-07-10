@@ -146,6 +146,12 @@ class Dispatcher:
                     session,
                 )
 
+            # ---------- 결제 취소 ----------
+            case Event.PAYMENT_CANCEL:
+                await PaymentController.cancel_payment_controllers_paymentController(
+                    session,
+                )
+
             # ---------- 세션 종료 ----------
             case Event.CANCEL_SESSION:
                 await SystemController.cancel_session_controllers_systemController(

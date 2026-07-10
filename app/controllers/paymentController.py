@@ -19,3 +19,11 @@ class PaymentController:
             raise ValueError("ORDER_ITEM_EXISTS")
 
         # 품절 검증: SoldOut 테이블이 프로젝트에서 제외되어 생략
+
+    @staticmethod
+    async def cancel_payment_controllers_paymentController(session):
+        """결제 취소 처리.
+        fsm_state PAYMENT→ORDERING 전이는 dispatcher/transition 이 담당한다.
+        이 메서드는 결제 관련 부수효과 정리 지점 (현재는 정리할 상태 없음).
+        """
+        return None
