@@ -7,7 +7,7 @@ EventExecutor 가 에러 응답을 만들 때 error_code 로 문구를 조회한
 
 # 에러코드 → 음성/UI 안내 문구 (FSM 명세 실패 코드 카탈로그)
 ERROR_MESSAGES: dict[str, str] = {
-    "INVALID_STATE": "지금은 그 요청을 처리할 수 없습니다.",
+    "INVALID_STATE": "지금은 그 요청을 처리할 수 없어요.",
     "ORDER_ITEM_EXISTS": "현재 주문중인 메뉴부터 마무리해주세요.",
     "ORDER_ITEM_NOT_FOUND": "메뉴를 먼저 선택해주세요.",
     "INVALID_ORDER_ITEM_STATE": "지금은 처리할 수 있는 단계가 아니에요.",
@@ -15,8 +15,8 @@ ERROR_MESSAGES: dict[str, str] = {
     "EMPTY_CART": "장바구니가 비어있어요. 먼저 메뉴를 담아주세요.",
     "CART_ITEM_NOT_FOUND": "장바구니에서 해당 메뉴를 찾을 수 없어요.",
     "RECOMMENDATION_NOT_FOUND": "추천해드린 메뉴가 없어요. 먼저 추천을 요청해주세요.",
-    "MENU_NOT_FOUND": "죄송해요, 그런 메뉴는 저희 매장에 없어요.",
-    "OPTION_NOT_FOUND": "그런 옵션은 없어요. 다시 말씀해주세요.",
+    "MENU_NOT_FOUND": "죄송해요, 그 메뉴는 저희 매장에 없어요.",
+    "OPTION_NOT_FOUND": "그 옵션은 없어요. 다시 말씀해주세요.",
     "INVALID_OPTION": "이 메뉴에는 없는 옵션이에요.",
     "INVALID_QUANTITY": "수량은 1개 이상으로 말씀해주세요.",
     "SOLD_OUT_MENU": "죄송해요, 지금은 품절된 메뉴예요.",
