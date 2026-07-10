@@ -148,7 +148,7 @@ class Dispatcher:
             # ---------- 메뉴 정보 ----------
             case Event.REQUEST_MENU_INFO:
                 await SystemController.get_menu_info_controllers_systemController(
-                    db=db, menu_id=params["menu_id"],
+                    db=db, menu_id=params["menu_id"], session=session,
                 )
 
             # ---------- 결제 시작 ----------

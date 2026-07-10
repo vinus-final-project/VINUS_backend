@@ -14,7 +14,7 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.fsm.dispatcher import Dispatcher
-from app.fsm.event import FSMEvent
+from app.fsm.event import Event, FSMEvent
 from app.fsm.FSMstate import FSMState
 from app.memory.session.enums import SessionStatus, SpeakerType
 from app.memory.session.session import Session
@@ -65,6 +65,12 @@ class EventExecutor:
 
         # 모든 이벤트 성공 (Event 없음도 여기로) → 정상 응답
         response = EventExecutor._build_success_ruleEngine_eventExecutor(session)
+
+        # 결제 취소가 처리된 턴이면 응답 종류를 PAYMENT_CANCEL 로 표기
+        #   (프론트 SessionRouter 가 /cart 복귀 라우팅에 사용 — 음성 취소 대응)
+        if any(e.type == Event.PAYMENT_CANCEL for e in events):
+            response.response_type = ResponseType.PAYMENT_CANCEL
+
         await EventExecutor._touch_and_log_ruleEngine_eventExecutor(
             session, response.message,
         )

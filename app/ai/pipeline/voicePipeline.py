@@ -96,8 +96,14 @@ class VoicePipeline:
             events = await RuleEngine.build_events_ruleEngine_ruleEngine(
                 db=db, session=session, parse_result=parse_result,
             )
+        except rules.MultipleMenuError as exc:
+            # 정책 위반 (한 번에 한 메뉴) — LLM 폴백 대상 아님, 바로 안내
+            return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                session, exc.message,
+            )
         except rules.RuleParseError as exc:
             # 1차 폴백 : LLM (AI 서버) — 규칙으로 해석 못 한 발화 처리
+            #   (능력 부족만 폴백 — 정책 위반은 위에서 차단)
             try:
                 return await AiPipeline.run_llm_pipeline_aiPipeline(
                     db=db, session=session, query=normalized,
