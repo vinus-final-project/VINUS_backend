@@ -5,6 +5,12 @@ import uvicorn
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
+
+# ⚠ .env 로드는 반드시 app 모듈 import 보다 먼저 실행되어야 한다.
+#   whisperService 가 import 시점에 os.getenv("STT_DEVICE") 를 읽으므로,
+#   이 줄이 아래 import 들보다 늦으면 .env 의 STT_DEVICE 설정이 무시된다.
+load_dotenv(dotenv_path=".env")
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -43,10 +49,6 @@ from app.routers.session import router as session_router
 from app.routers.order import router as order_router
 from app.routers.cart import router as cart_router
 from app.routers import websocket
-
-
-
-load_dotenv(dotenv_path=".env")
 
 
 # ──────────────────────────────────────────────────────────────

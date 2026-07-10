@@ -41,7 +41,10 @@ RECOMMEND_ACCEPT_KEYWORDS = ("그걸로", "그거로", "추천 메뉴")
 RECOMMEND_REQUEST_KEYWORDS = ("추천",)
 INFO_KEYWORDS = ("뭐 있어", "메뉴 알려", "무슨 메뉴", "설명",
                  "얼마", "가격", "뭐야", "들어가", "알레르기", "성분")
-SKIP_OPTIONAL_KEYWORDS = ("안 할게", "안할래", "그대로", "없어요", "괜찮아요", "그거면")
+SKIP_OPTIONAL_KEYWORDS = (
+    "안 할게", "안할래", "그대로", "없어요", "괜찮아요", "그거면",
+    "완료", "담아", "다 골랐", "이대로", "이걸로",   # 주문/선택 완료 발화
+)
 
 # --- 옵션: 필수(단일선택, 교체) — 값=표준 op 토큰 ---
 REQUIRED_OPTION_KEYWORDS = {
