@@ -16,6 +16,11 @@ from enum import Enum
 #   이미 열려있는 WS 연결(anon)에 그 session_id 를 매핑하기 위해
 #   frontend 가 보내는 제어 메시지.
 #     { "type": "BIND_SESSION", "session_id": "<uuid>" }
+#
+#   UTTER_END: 발화 종료(EP) 마커. frontend Noise Gate 가 발화 청크를
+#   실시간 스트리밍하다가 게이트가 닫히면 보낸다. backend 는
+#   metadata~UTTER_END 사이 Binary 를 누적해 발화 하나로 확정한다.
+#     { "type": "UTTER_END" }
 # ──────────────────────────────────────────────────────────────
 
 
@@ -26,3 +31,4 @@ class MessageType(str, Enum):
     ERROR_RESPONSE = "ERROR_RESPONSE"
     PAYMENT_RESULT = "PAYMENT_RESULT"
     BIND_SESSION = "BIND_SESSION"
+    UTTER_END = "UTTER_END"

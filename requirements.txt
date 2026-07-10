@@ -99,7 +99,9 @@ typing_extensions==4.15.0
 tzdata==2026.2
 urllib3==2.7.0
 uvicorn==0.49.0
-webrtcvad==2.0.10
 webrtcvad-wheels==2.0.14
 websockets==14.1
 Werkzeug==3.1.8
+
+# GPU 사용 시 (NVIDIA, 선택): 위 torch 대신 CUDA 빌드 설치
+#   pip install torch --index-url https://download.pytorch.org/whl/cu128
