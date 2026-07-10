@@ -107,6 +107,11 @@ class RuleParser:
                     e["menu"] = menu_ids[0]
                 return "CART", e
 
+        # 4) 화면 이동: 전체 메뉴(주문) 화면 복귀 — "돌아가/뒤로/메뉴 더"
+        #    (상태 변경 없음 — voicePipeline 이 SHOW_MENU 응답으로 처리)
+        if not menu_ids and any(k in text for k in rules.NAVIGATE_MENU_KEYWORDS):
+            return "NAVIGATE", {"target": "MENU"}
+
         if any(k in text for k in rules.RECOMMEND_ACCEPT_KEYWORDS):
             return "RECOMMEND", {"action": "ACCEPT"}
         if any(k in text for k in rules.RECOMMEND_REQUEST_KEYWORDS):

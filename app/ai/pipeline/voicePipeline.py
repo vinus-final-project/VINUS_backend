@@ -91,6 +91,12 @@ class VoicePipeline:
         try:
             nr = NormalizeResult(session_id=session_id, text=normalized)
             parse_result = RuleParser.parse_ruleEngine_ruleParser(nr)
+
+            # 화면 이동 발화 ("돌아가/메뉴 더") — FSM 이벤트 없이 SHOW_MENU 응답
+            #   (상태 변화가 없어 프론트가 구분할 수 없으므로 응답 타입으로 전달)
+            if parse_result.intent == "NAVIGATE":
+                return VoicePipeline._build_navigate_pipeline_voicePipeline(session)
+
             # RuleEngine : ParseResult → List[FSMEvent]
             #   (옵션 op_id 해석 실패 등도 RuleParseError 로 폴백 처리)
             events = await RuleEngine.build_events_ruleEngine_ruleEngine(
@@ -117,6 +123,36 @@ class VoicePipeline:
         # EventExecutor : FIFO 실행 → SessionResponse (실패 시 내부에서 에러 응답 조립)
         return await EventExecutor.execute_ruleEngine_eventExecutor(
             db=db, session=session, events=events,
+        )
+
+    # ------------------------------------------------------------------
+    # 화면 이동 응답 : 전체 메뉴 화면 복귀 (상태 변경 없음)
+    #   세션 없으면(주문 시작 전) 안내 문구로 대체
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _build_navigate_pipeline_voicePipeline(
+        session: Optional[Session],
+    ) -> SessionResponse:
+        if session is None:
+            return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                session, "먼저 매장 또는 포장을 선택해 주세요.",
+            )
+        return SessionResponse(
+            response_type=ResponseType.SHOW_MENU,
+            session_id=session.session_id,
+            success=True,
+            message="메뉴 화면으로 돌아갈게요.",
+            fsm_state=session.fsm_state,
+            order_type=session.order_type,
+            order_item=session.order_item,
+            current_menu=session.current_menu,
+            cart=session.cart,
+            total_price=sum(
+                ci.unit_price * ci.quantity for ci in session.cart
+            ),
+            recommendation_list=session.recommendation_list,
+            error_code=None,
+            session_end=False,
         )
 
     # ------------------------------------------------------------------

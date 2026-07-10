@@ -37,6 +37,9 @@ CART_INCREASE_KEYWORDS = ("하나 더", "더 담", "증가", "늘려")
 CART_DECREASE_KEYWORDS = ("하나 빼", "감소", "줄여")
 CART_REMOVE_KEYWORDS = ("삭제", "빼줘", "제거", "취소")   # "아메리카노 취소" = 카트에서 제거
 CART_SHOW_KEYWORDS = ("장바구니", "담은", "카트")
+# 화면 이동: 전체 메뉴(주문) 화면 복귀 — FSM 이벤트 없음 (voicePipeline 이 SHOW_MENU 응답)
+NAVIGATE_MENU_KEYWORDS = ("돌아가", "뒤로", "메뉴 더", "다른 메뉴", "메뉴 보여",
+                          "메뉴판", "더 주문", "주문 더", "계속 주문")
 RECOMMEND_ACCEPT_KEYWORDS = ("그걸로", "그거로", "추천 메뉴")
 RECOMMEND_REQUEST_KEYWORDS = ("추천",)
 INFO_KEYWORDS = ("뭐 있어", "메뉴 알려", "무슨 메뉴", "설명",
