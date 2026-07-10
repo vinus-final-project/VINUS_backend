@@ -24,6 +24,7 @@ from app.controllers.orderController import OrderController
 from app.controllers.cartController import CartController
 from app.controllers.systemController import SystemController
 from app.controllers.paymentController import PaymentController
+from app.controllers.recommendationController import RecommendationController
 
 
 class Dispatcher:
@@ -134,6 +135,16 @@ class Dispatcher:
                     session=session, cart_item_id=params["cart_item_id"],
                 )
 
+            # ---------- 추천 ----------
+            case Event.REQUEST_RECOMMENDATION:
+                await RecommendationController.request_recommendation_controllers_recommendationController(
+                    db=db, session=session, condition=params.get("condition", ""),
+                )
+            case Event.ACCEPT_RECOMMENDATION:
+                await RecommendationController.accept_recommendation_controllers_recommendationController(
+                    db=db, session=session,
+                )
+
             # ---------- 메뉴 정보 ----------
             case Event.REQUEST_MENU_INFO:
                 await SystemController.get_menu_info_controllers_systemController(
@@ -143,6 +154,12 @@ class Dispatcher:
             # ---------- 결제 시작 ----------
             case Event.START_PAYMENT:
                 await PaymentController.start_payment_controllers_paymentController(
+                    session,
+                )
+
+            # ---------- 결제 성공 (토스 confirm 후 services.payment 가 발행) ----------
+            case Event.PAYMENT_SUCCESS:
+                await SystemController.complete_session_controllers_systemController(
                     session,
                 )
 
@@ -162,7 +179,7 @@ class Dispatcher:
                     session,
                 )
 
-            # ---------- 결제완료/취소 · 추천: 타 담당 (미배선) ----------
+            # ---------- 그 외 (정의만 있고 미배선인 이벤트 방어) ----------
             case _:
                 raise NotImplementedError(f"Event not wired: {event}")
 

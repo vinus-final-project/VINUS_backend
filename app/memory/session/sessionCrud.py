@@ -228,12 +228,8 @@ class SessionCrud:
     ) -> None:
         session.cart.clear()
 
-    # D - Session 개별 삭제 (없으면 무시)
-    @staticmethod
-    async def delete_session_session_sessionCrud(
-        session_id: str,
-    ) -> None:
-        SessionMemory.sessions.pop(session_id, None)
+    # (중복 정의였던 delete_session_session_sessionCrud 제거 —
+    #  위쪽 "D - Session 삭제 (메모리에서 완전 제거)" 정의 하나만 유지)
 
     # D - 전체 Session 초기화 (테스트/디버그 전용)
     @staticmethod

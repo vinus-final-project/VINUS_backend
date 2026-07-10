@@ -22,15 +22,16 @@ class SystemController:
         return session
 
     # ------------------------------------------------------------------
-    # 세션 완료
+    # 세션 완료 (결제 완료 — 상태 표기 후 메모리에서 제거)
+    #   DB 영속화(주문/로그)는 결제 승인 시점에 crud.order 가 수행
     # ------------------------------------------------------------------
     @staticmethod
     async def complete_session_controllers_systemController(
         session: Session,
     ) -> None:
-        """Session 완료"""
+        """Session 완료 → 메모리에서 삭제"""
         session.session_status = SessionStatus.COMPLETED
-        await SessionCrud.update_session_session_sessionCrud(session)
+        await SessionCrud.delete_session_session_sessionCrud(session.session_id)
 
     # ------------------------------------------------------------------
     # 세션 취소 (상태 표기 후 메모리에서 제거)

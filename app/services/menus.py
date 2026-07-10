@@ -22,6 +22,19 @@ class Menus:
             
         return {"menus": response_menus}
 
+    # R - 추천 후보 메뉴 조회 (키워드 매칭 실패 시 기본 상위 메뉴로 폴백)
+    @staticmethod
+    async def get_recommendation_menus_services_menus(
+        db: AsyncSession, keyword: str | None = None, limit: int = 3
+    ):
+        db_menus = await MenusCrud.search_menus_by_keyword_crud_menus(db, keyword, limit)
+        if not db_menus and keyword:
+            db_menus = await MenusCrud.search_menus_by_keyword_crud_menus(db, None, limit)
+        return [
+            {"m_id": m.m_id, "m_name": m.m_name, "m_price": m.m_price}
+            for m in db_menus
+        ]
+
     # R - 메뉴 단일 상세 정보 조회 (알레르기, 성분, 옵션 포함)
     @staticmethod
     async def get_single_menu_detail_services_menus(m_id: int, db: AsyncSession):

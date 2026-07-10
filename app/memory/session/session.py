@@ -37,6 +37,7 @@ class Session(BaseModel):
     # -- 변수 선언 ----------------------------------------------------------
     session_id: str                                             # 세션 식별자 UUID
     created_at: datetime = Field(default_factory=datetime.now)  # 세션 생성 시간
+    last_active_at: datetime = Field(default_factory=datetime.now)  # 마지막 활동 시간 (TTL 스위퍼 기준)
     session_status : SessionStatus = SessionStatus.ACTIVE       # 세션 생명주기 (ACTIVE/COMPLETED/EXPIRED/CANCELED)
 
     fsm_state: FSMState = FSMState.INIT                # 현재 FSM 상태
