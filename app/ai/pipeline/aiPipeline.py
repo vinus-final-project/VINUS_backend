@@ -17,6 +17,7 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.client.aiClient import call_llm_aiClient
+from app.ai.ruleEngine import rules
 from app.ai.ruleEngine.eventExecutor import EventExecutor
 from app.fsm.event import Event, FSMEvent
 from app.fsm.FSMstate import FSMState
@@ -68,7 +69,27 @@ class AiPipeline:
             except ValueError:
                 continue
 
-        # 3) 세션 없음 + 이벤트 없음 → 안내-only 응답
+        # 3) 정책 방어 : 한 번에 한 메뉴 — LLM 이 SELECT_MENU 를
+        #    2개 이상 반환하면 실행하지 않고 안내 문구만 반환
+        select_menu_count = sum(
+            1 for ev in events if ev.type == Event.SELECT_MENU
+        )
+        if select_menu_count >= 2:
+            return SessionResponse(
+                response_type=ResponseType.NORMAL,
+                session_id=session.session_id if session else "",
+                success=True,
+                message=rules.MSG_MULTIPLE_MENU,
+                fsm_state=session.fsm_state if session else FSMState.INIT,
+                order_type=session.order_type if session else None,
+                order_item=session.order_item if session else None,
+                cart=session.cart if session else [],
+                recommendation_list=(
+                    session.recommendation_list if session else []
+                ),
+            )
+
+        # 4) 세션 없음 + 이벤트 없음 → 안내-only 응답
         #    (EventExecutor 는 세션 필요 — INIT 안내 문구만 반환)
         if session is None and not events:
             return SessionResponse(
@@ -79,7 +100,7 @@ class AiPipeline:
                 fsm_state=FSMState.INIT,
             )
 
-        # 4) 실행 — 이벤트 없으면 LLM 안내 문구만 담긴 정상 응답
+        # 5) 실행 — 이벤트 없으면 LLM 안내 문구만 담긴 정상 응답
         return await EventExecutor.execute_ruleEngine_eventExecutor(
             db=db,
             session=session,

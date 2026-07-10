@@ -1,3 +1,5 @@
+from typing import Optional
+
 from app.memory.session.enums import OrderType, SessionStatus
 from app.memory.session.session import Session
 from app.memory.session.sessionCrud import SessionCrud
@@ -57,14 +59,22 @@ class SystemController:
 
     # ------------------------------------------------------------------
     # 메뉴 정보 조회 (Query)
+    #   session 이 있으면 음성 안내 문구(session.message)도 세팅
     # ------------------------------------------------------------------
     @staticmethod
     async def get_menu_info_controllers_systemController(
         db: AsyncSession,
         menu_id: int,
+        session: Optional[Session] = None,
     ) -> dict:
         """메뉴 정보 조회 (없으면 Menus 가 404=MENU_NOT_FOUND 발생)"""
-        return await Menus.get_single_menu_detail_services_menus(
+        menu = await Menus.get_single_menu_detail_services_menus(
             db=db,
             m_id=menu_id,
         )
+        if session is not None:
+            description = menu.get("m_description") or ""
+            session.message = (
+                f"{menu['m_name']}는 {menu['m_price']}원입니다. {description}"
+            ).strip()
+        return menu

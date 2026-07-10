@@ -63,8 +63,23 @@ class RuleParser:
         text: str, menu_ids: List[int], menu_spans: List[Tuple[int, int, int]],
     ) -> Tuple[str, Dict[str, Any]]:
 
+        # 옵션 단어(샷/휘핑/아이스 등) 포함 여부 — 카트/취소 분기와 옵션 조작 구분용
+        #   ("휘핑 빼줘"/"샷 취소"는 카트 조작·세션 취소가 아니라 옵션 감소)
+        has_option_word = any(
+            k in text for k in rules.OPTIONAL_OPTION_KEYWORDS
+        ) or any(k in text for k in rules.REQUIRED_OPTION_KEYWORDS)
+
+        # 1) 명시적 전체 취소 ("처음부터", "전부 취소" 등) → 세션 취소
         if not menu_ids and any(k in text for k in rules.SESSION_CANCEL_KEYWORDS):
             return "SESSION", {"action": "CANCEL"}
+
+        # 2) 제네릭 "취소" (메뉴/옵션 단어 없음) → 문맥 해석은 RuleEngine
+        #    (PAYMENT 상태→결제취소, 주문 작성 중→주문취소, 그 외→세션취소)
+        if not menu_ids and not has_option_word and any(
+            k in text for k in rules.CANCEL_KEYWORDS
+        ):
+            return "CANCEL", {}
+
         for kw, ot in rules.ORDER_TYPE_KEYWORDS.items():
             if kw in text:
                 return "SESSION", {"order_type": ot}
@@ -72,17 +87,25 @@ class RuleParser:
         if any(k in text for k in rules.PAYMENT_KEYWORDS):
             return "PAYMENT", {"action": "START"}
 
-        if not menu_ids:
+        # 3) 카트 조작 — 메뉴 지정 허용 ("아메리카노 빼줘")
+        #    옵션 단어가 있으면 옵션 증감이므로 ORDER 경로로 넘긴다.
+        if not has_option_word:
+            cart_action = None
             if any(k in text for k in rules.CART_CLEAR_KEYWORDS):
-                return "CART", {"action": "CLEAR"}
-            if any(k in text for k in rules.CART_INCREASE_KEYWORDS):
-                return "CART", {"action": "INCREASE"}
-            if any(k in text for k in rules.CART_DECREASE_KEYWORDS):
-                return "CART", {"action": "DECREASE"}
-            if any(k in text for k in rules.CART_REMOVE_KEYWORDS):
-                return "CART", {"action": "REMOVE"}
-            if any(k in text for k in rules.CART_SHOW_KEYWORDS):
-                return "CART", {"action": "SHOW"}
+                cart_action = "CLEAR"
+            elif any(k in text for k in rules.CART_INCREASE_KEYWORDS):
+                cart_action = "INCREASE"
+            elif any(k in text for k in rules.CART_DECREASE_KEYWORDS):
+                cart_action = "DECREASE"
+            elif any(k in text for k in rules.CART_REMOVE_KEYWORDS):
+                cart_action = "REMOVE"
+            elif not menu_ids and any(k in text for k in rules.CART_SHOW_KEYWORDS):
+                cart_action = "SHOW"
+            if cart_action:
+                e: Dict[str, Any] = {"action": cart_action}
+                if menu_ids and cart_action in ("REMOVE", "INCREASE", "DECREASE"):
+                    e["menu"] = menu_ids[0]
+                return "CART", e
 
         if any(k in text for k in rules.RECOMMEND_ACCEPT_KEYWORDS):
             return "RECOMMEND", {"action": "ACCEPT"}
@@ -150,22 +173,32 @@ class RuleParser:
             work = work[:idx] + " " * (idx + 8 - idx) + work[idx + 8:]  # 스팬 blank
         return out, work
 
-    # 메뉴 수량: 남은 텍스트에서 한글수사 / 숫자+(잔·컵·개)
+    # 메뉴 수량: 숫자+단위 → 관형형 수사+단위 → 완전형 수사 순
+    #   관형형(한/두/세/네)은 단위 필수 — "주세요"의 '세' 오인식 방지
     @staticmethod
     def _extract_quantity(work: str) -> Optional[int]:
-        for word, v in rules.KOREAN_NUMBER.items():
+        m = re.search(r"(\d+)\s*(잔|컵|개)", work)
+        if m:
+            return int(m.group(1))
+        m = re.search(r"(한|두|세|네)\s*(잔|컵|개)", work)
+        if m:
+            return rules.KOREAN_NUMBER_MODIFIER[m.group(1)]
+        for word, v in rules.KOREAN_NUMBER_FULL.items():
             if word in work:
                 return v
-        m = re.search(r"(\d+)\s*(잔|컵|개)", work)
-        return int(m.group(1)) if m else None
+        return None
 
     # 구간(윈도우) 안 숫자(아라비아/한글수사) → int
+    #   관형형 수사는 단위가 붙을 때만 ("샷 추가해 주세요"의 '세' 방지)
     @staticmethod
     def _number_in(s: str) -> Optional[int]:
         m = re.search(r"(\d+)", s)
         if m:
             return int(m.group(1))
-        for word, v in rules.KOREAN_NUMBER.items():
+        m = re.search(r"(한|두|세|네)\s*(잔|컵|개|번)", s)
+        if m:
+            return rules.KOREAN_NUMBER_MODIFIER[m.group(1)]
+        for word, v in rules.KOREAN_NUMBER_FULL.items():
             if word in s:
                 return v
         return None
