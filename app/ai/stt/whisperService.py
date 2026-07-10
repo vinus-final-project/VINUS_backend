@@ -1,5 +1,6 @@
 # app/ai/stt/whisperService.py
 import asyncio
+import os
 
 import numpy as np
 import torch
@@ -9,10 +10,18 @@ from faster_whisper import WhisperModel
 class WhisperService:
     # ===== 변수 선언 =====
     model_size = "large-v3-turbo"
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    compute_type = "float16" if torch.cuda.is_available() else "int8"
+    # device = "cuda" if torch.cuda.is_available() else "cpu"
+    # compute_type = "float16" if torch.cuda.is_available() else "int8"
+        # language = "ko"
+    device = os.getenv("STT_DEVICE", "cuda")
+    if device == "cuda" and not torch.cuda.is_available():
+            raise RuntimeError(
+                "[STT] CUDA(GPU)를 사용할 수 없습니다. "
+                "CUDA용 PyTorch/드라이버 설치를 확인하거나, "
+                "CPU로 실행하려면 환경변수 STT_DEVICE=cpu 를 설정하세요."
+            )
+    compute_type = "float16" if device == "cuda" else "int8"
     language = "ko"
-
     # 메뉴 인식 정확도 향상용 힌트 (seed 실제 메뉴 기준)
     initial_prompt = (
         "카페 음료 주문입니다. "
@@ -26,6 +35,8 @@ class WhisperService:
 
     # 모델 로드 (클래스 정의 시 1회 — 싱글톤)
     model = WhisperModel(model_size, device=device, compute_type=compute_type)
+
+    print(f"[STT] WhisperModel 로드 완료 — device={device}, compute_type={compute_type}")
 
     # ===== 함수 정의 =====
     # PCM int16 bytes → float32 numpy 변환
