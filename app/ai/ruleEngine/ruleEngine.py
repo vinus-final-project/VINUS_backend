@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.ruleEngine import rules
 from app.fsm.event import Event, FSMEvent
+from app.fsm.FSMstate import FSMState
 from app.interface.dto.parseResult import ParseResult
 from app.memory.session.session import Session
 from app.services.menus import Menus
@@ -35,6 +36,8 @@ class RuleEngine:
 
         if intent == "SESSION":
             return RuleEngine._session_events_ruleEngine_ruleEngine(entities)
+        if intent == "CANCEL":
+            return RuleEngine._cancel_events_ruleEngine_ruleEngine(session)
         if intent == "PAYMENT":
             return [FSMEvent(type=Event.START_PAYMENT)]
         if intent == "RECOMMEND":
@@ -42,7 +45,7 @@ class RuleEngine:
         if intent == "INFO":
             return RuleEngine._info_events_ruleEngine_ruleEngine(entities)
         if intent == "CART":
-            return RuleEngine._cart_events_ruleEngine_ruleEngine(entities)
+            return RuleEngine._cart_events_ruleEngine_ruleEngine(session, entities)
         if intent == "ORDER":
             return await RuleEngine._order_events_ruleEngine_ruleEngine(db, session, entities)
 
@@ -57,6 +60,23 @@ class RuleEngine:
         if order_type:
             return [FSMEvent(type=Event.SELECT_ORDER_TYPE, parameters={"order_type": order_type})]
         raise rules.ParseFailedError("매장에서 드시나요, 포장이신가요?", reason="NO_ORDER_TYPE")
+
+    # ---------------- CANCEL (제네릭 "취소" — 세션 문맥 해석) ----------------
+    #   PAYMENT 상태      → 결제 취소
+    #   주문 작성 중       → 현재 주문 취소
+    #   그 외             → 세션 취소
+    @staticmethod
+    def _cancel_events_ruleEngine_ruleEngine(
+        session: Optional[Session],
+    ) -> List[FSMEvent]:
+        if session is None:
+            raise rules.ParseFailedError(
+                "취소할 주문이 없어요.", reason="NO_SESSION_FOR_CANCEL")
+        if session.fsm_state == FSMState.PAYMENT:
+            return [FSMEvent(type=Event.PAYMENT_CANCEL)]
+        if session.order_item is not None:
+            return [FSMEvent(type=Event.CANCEL_ORDER_ITEM)]
+        return [FSMEvent(type=Event.CANCEL_SESSION)]
 
     # ---------------- RECOMMEND ----------------
     @staticmethod
@@ -74,17 +94,65 @@ class RuleEngine:
             raise rules.ParseFailedError("어떤 메뉴가 궁금하세요?", reason="NO_MENU_FOR_INFO")
         return [FSMEvent(type=Event.REQUEST_MENU_INFO, parameters={"menu_id": menu_id})]
 
-    # ---------------- CART (SHOW/CLEAR 만 확정) ----------------
+    # ---------------- CART ----------------
     @staticmethod
-    def _cart_events_ruleEngine_ruleEngine(e: Dict[str, Any]) -> List[FSMEvent]:
+    def _cart_events_ruleEngine_ruleEngine(
+        session: Optional[Session], e: Dict[str, Any],
+    ) -> List[FSMEvent]:
         action = e.get("action")
         if action == "SHOW":
             return [FSMEvent(type=Event.SHOW_CART)]
         if action == "CLEAR":
             return [FSMEvent(type=Event.CLEAR_CART)]
-        # REMOVE/INCREASE/DECREASE : cart_item_id 미상 → 세션 문맥 필요
+
+        # REMOVE/INCREASE/DECREASE — cart_item 해석 필요
+        menu_id = e.get("menu")
+
+        # "아메리카노 취소/빼줘" 인데 그 메뉴가 지금 작성 중인 주문이면
+        # 카트가 아니라 현재 주문 취소로 해석
+        if (
+            action == "REMOVE"
+            and menu_id is not None
+            and session is not None
+            and session.order_item is not None
+            and session.order_item.menu_id == menu_id
+        ):
+            return [FSMEvent(type=Event.CANCEL_ORDER_ITEM)]
+
+        cart_item_id = RuleEngine._resolve_cart_item_ruleEngine_ruleEngine(
+            session, menu_id,
+        )
+        event_map = {
+            "REMOVE": Event.REMOVE_CART_ITEM,
+            "INCREASE": Event.INCREASE_CART_ITEM,
+            "DECREASE": Event.DECREASE_CART_ITEM,
+        }
+        ev = event_map.get(action)
+        if ev is None:
+            raise rules.ParseFailedError(
+                rules.MSG_PARSE_FAILED, reason="UNKNOWN_CART_ACTION")
+        return [FSMEvent(type=ev, parameters={"cart_item_id": cart_item_id})]
+
+    # cart_item_id 해석 : 메뉴 지정 → 해당 메뉴 항목(복수면 마지막 담은 것),
+    #                    미지정 → 카트에 1건이면 그것, 그 외 재질문
+    @staticmethod
+    def _resolve_cart_item_ruleEngine_ruleEngine(
+        session: Optional[Session], menu_id: Optional[int],
+    ) -> int:
+        if session is None or not session.cart:
+            raise rules.ParseFailedError(
+                "장바구니가 비어 있어요.", reason="EMPTY_CART")
+        if menu_id is not None:
+            matches = [ci for ci in session.cart if ci.menu_id == menu_id]
+            if not matches:
+                raise rules.ParseFailedError(
+                    "장바구니에 그 메뉴가 없어요.", reason="CART_ITEM_NOT_FOUND")
+            return matches[-1].cart_item_id
+        if len(session.cart) == 1:
+            return session.cart[0].cart_item_id
         raise rules.ParseFailedError(
-            "장바구니에서 어떤 메뉴를 말씀하시는지 알려주세요.", reason="CART_ITEM_UNRESOLVED")
+            "장바구니에서 어떤 메뉴를 말씀하시는지 알려주세요.",
+            reason="CART_ITEM_UNRESOLVED")
 
     # ---------------- ORDER ----------------
     @staticmethod
