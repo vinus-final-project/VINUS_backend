@@ -1,9 +1,19 @@
+import asyncio
+from datetime import datetime
+
 import uvicorn
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.core.constants import (
+    SESSION_TTL_SECONDS,
+    SESSION_SWEEP_INTERVAL_SECONDS,
+)
+from app.controllers.systemController import SystemController
+from app.memory.session.sessionMemory import SessionMemory
 
 
 from app.db.database import Base, async_engine
@@ -39,6 +49,24 @@ from app.routers import websocket
 load_dotenv(dotenv_path=".env")
 
 
+# ──────────────────────────────────────────────────────────────
+# 세션 TTL 스위퍼 — 마지막 활동 후 TTL 경과한 세션 자동 만료
+#   (EXPIRE_SESSION 과 동일하게 상태 표기 후 메모리에서 제거)
+# ──────────────────────────────────────────────────────────────
+async def _sweep_expired_sessions():
+    while True:
+        await asyncio.sleep(SESSION_SWEEP_INTERVAL_SECONDS)
+        now = datetime.now()
+        # 순회 중 삭제 대비 — 목록 복사
+        for session in list(SessionMemory.sessions.values()):
+            idle = (now - session.last_active_at).total_seconds()
+            if idle >= SESSION_TTL_SECONDS:
+                await SystemController.expire_session_controllers_systemController(
+                    session,
+                )
+                print(f"[TTL] 세션 만료 처리: {session.session_id} (유휴 {int(idle)}초)")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with async_engine.begin() as conn:
@@ -51,7 +79,13 @@ async def lifespan(app: FastAPI):
         async with session.begin():
             await run_all_seeds(session)
 
+    # 세션 TTL 스위퍼 시작
+    sweeper_task = asyncio.create_task(_sweep_expired_sessions())
+
     yield
+
+    # 스위퍼 정지 후 엔진 정리
+    sweeper_task.cancel()
     await async_engine.dispose()
 
 
@@ -64,6 +98,9 @@ app.add_middleware(
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:4173",
+        "http://3.38.240.185",
+        "http://voice-in-us.com",
+        "https://voice-in-us.com",
     ],
     allow_origin_regex=r"https://.*\.ngrok-free\.app",
     allow_credentials=True,

@@ -1,0 +1,176 @@
+# app/ai/ruleEngine/ruleEngine.py
+"""Rule Engine : ParseResult → List[FSMEvent] (현재 코드/데이터 기준).
+
+- Intent 1개 / 메뉴 1개 / 행동 1개.
+- 옵션 값 → op_id 해석 (메뉴 상세):
+    · 필수  : op_name == 값        (ICE/HOT/레귤러/라지)
+    · 샷    : 데이터가 '샷 N개 추가' 디스크리트 → count 를 op_name 으로 변환 (1건)
+    · 시럽/휘핑 : 값이 이미 op_name (바닐라 시럽 등) → 누적이면 count 만큼 반복
+- 옵션 이벤트: action ADD → SELECT_OPTION, REMOVE → DESELECT_OPTION
+- 이벤트 순서: SELECT_MENU → 옵션 → SET_QUANTITY (set_quantity 는 상태 무관)
+- 세션 문맥 필요한데 없는 경우(장바구니 항목 지정 등)는 ParseFailedError 로 위임.
+"""
+
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.ai.ruleEngine import rules
+from app.fsm.event import Event, FSMEvent
+from app.interface.dto.parseResult import ParseResult
+from app.memory.session.session import Session
+from app.services.menus import Menus
+
+
+class RuleEngine:
+
+    @staticmethod
+    async def build_events_ruleEngine_ruleEngine(
+        db: AsyncSession,
+        session: Optional[Session],
+        parse_result: ParseResult,
+    ) -> List[FSMEvent]:
+        intent = parse_result.intent
+        entities = parse_result.entities
+
+        if intent == "SESSION":
+            return RuleEngine._session_events_ruleEngine_ruleEngine(entities)
+        if intent == "PAYMENT":
+            return [FSMEvent(type=Event.START_PAYMENT)]
+        if intent == "RECOMMEND":
+            return RuleEngine._recommend_events_ruleEngine_ruleEngine(entities)
+        if intent == "INFO":
+            return RuleEngine._info_events_ruleEngine_ruleEngine(entities)
+        if intent == "CART":
+            return RuleEngine._cart_events_ruleEngine_ruleEngine(entities)
+        if intent == "ORDER":
+            return await RuleEngine._order_events_ruleEngine_ruleEngine(db, session, entities)
+
+        raise rules.ParseFailedError(rules.MSG_PARSE_FAILED, reason="UNKNOWN_INTENT")
+
+    # ---------------- SESSION (order_type / cancel) ----------------
+    @staticmethod
+    def _session_events_ruleEngine_ruleEngine(e: Dict[str, Any]) -> List[FSMEvent]:
+        if e.get("action") == "CANCEL":
+            return [FSMEvent(type=Event.CANCEL_SESSION)]
+        order_type = e.get("order_type")
+        if order_type:
+            return [FSMEvent(type=Event.SELECT_ORDER_TYPE, parameters={"order_type": order_type})]
+        raise rules.ParseFailedError("매장에서 드시나요, 포장이신가요?", reason="NO_ORDER_TYPE")
+
+    # ---------------- RECOMMEND ----------------
+    @staticmethod
+    def _recommend_events_ruleEngine_ruleEngine(e: Dict[str, Any]) -> List[FSMEvent]:
+        if e.get("action") == "ACCEPT":
+            return [FSMEvent(type=Event.ACCEPT_RECOMMENDATION)]
+        return [FSMEvent(type=Event.REQUEST_RECOMMENDATION,
+                         parameters={"condition": e.get("condition", "")})]
+
+    # ---------------- INFO ----------------
+    @staticmethod
+    def _info_events_ruleEngine_ruleEngine(e: Dict[str, Any]) -> List[FSMEvent]:
+        menu_id = e.get("menu")
+        if menu_id is None:
+            raise rules.ParseFailedError("어떤 메뉴가 궁금하세요?", reason="NO_MENU_FOR_INFO")
+        return [FSMEvent(type=Event.REQUEST_MENU_INFO, parameters={"menu_id": menu_id})]
+
+    # ---------------- CART (SHOW/CLEAR 만 확정) ----------------
+    @staticmethod
+    def _cart_events_ruleEngine_ruleEngine(e: Dict[str, Any]) -> List[FSMEvent]:
+        action = e.get("action")
+        if action == "SHOW":
+            return [FSMEvent(type=Event.SHOW_CART)]
+        if action == "CLEAR":
+            return [FSMEvent(type=Event.CLEAR_CART)]
+        # REMOVE/INCREASE/DECREASE : cart_item_id 미상 → 세션 문맥 필요
+        raise rules.ParseFailedError(
+            "장바구니에서 어떤 메뉴를 말씀하시는지 알려주세요.", reason="CART_ITEM_UNRESOLVED")
+
+    # ---------------- ORDER ----------------
+    @staticmethod
+    async def _order_events_ruleEngine_ruleEngine(
+        db: AsyncSession, session: Optional[Session], e: Dict[str, Any],
+    ) -> List[FSMEvent]:
+        if e.get("skip_optional"):
+            return [FSMEvent(type=Event.SKIP_OPTIONAL_OPTION)]
+
+        events: List[FSMEvent] = []
+        menu_id = e.get("menu")
+
+        # 1) SELECT_MENU
+        if menu_id is not None:
+            events.append(FSMEvent(type=Event.SELECT_MENU, parameters={"menu_id": menu_id}))
+
+        required = e.get("required_option", [])
+        optional = e.get("optional_option", [])
+        if required or optional:
+            menu = await RuleEngine._load_menu_ruleEngine_ruleEngine(db, session, menu_id)
+
+            # 2) 필수 옵션 → SELECT_OPTION
+            for value in required:
+                op_id = RuleEngine._find_op_id_ruleEngine_ruleEngine(menu, value)
+                if op_id is None:
+                    raise rules.ParseFailedError(f"'{value}' 옵션을 찾을 수 없어요.", reason="OPTION_NOT_FOUND")
+                events.append(FSMEvent(type=Event.SELECT_OPTION, parameters={"option_id": op_id}))
+
+            # 3) 선택 옵션 → SELECT_OPTION / DESELECT_OPTION
+            for item in optional:
+                events.extend(RuleEngine._optional_events_ruleEngine_ruleEngine(menu, item))
+
+        # 4) SET_QUANTITY (순서 무관)
+        quantity = e.get("quantity")
+        if quantity is not None:
+            events.append(FSMEvent(type=Event.SET_QUANTITY, parameters={"quantity": quantity}))
+
+        if not events:
+            raise rules.ParseFailedError("무엇을 주문하시겠어요?", reason="EMPTY_ORDER")
+        return events
+
+    # 옵션 해석 기준 메뉴: 이번 발화 메뉴(DB) or 현재 작성 중 메뉴(current_menu 스냅샷)
+    @staticmethod
+    async def _load_menu_ruleEngine_ruleEngine(
+        db: AsyncSession, session: Optional[Session], menu_id: Optional[int],
+    ) -> Dict[str, Any]:
+        if menu_id is not None:
+            return await Menus.get_single_menu_detail_services_menus(m_id=menu_id, db=db)
+        if session is not None and session.current_menu is not None:
+            return session.current_menu
+        raise rules.ParseFailedError("먼저 메뉴를 선택해 주세요.", reason="NO_MENU_FOR_OPTION")
+
+    # op_name == value 인 op_id (없으면 None)
+    @staticmethod
+    def _find_op_id_ruleEngine_ruleEngine(menu: Dict[str, Any], op_name: str) -> Optional[int]:
+        for group in menu["option_groups"]:
+            for option in group["options"]:
+                if option["op_name"] == op_name:
+                    return option["op_id"]
+        return None
+
+    # 선택옵션 1건 → 이벤트 목록
+    @staticmethod
+    def _optional_events_ruleEngine_ruleEngine(
+        menu: Dict[str, Any], item: Dict[str, Any],
+    ) -> List[FSMEvent]:
+        value = item["value"]
+        count = item.get("count", 1)
+        action = item.get("action", "ADD")
+        ev = Event.DESELECT_OPTION if action == "REMOVE" else Event.SELECT_OPTION
+
+        # 샷: 데이터가 '샷 N개 추가' 디스크리트 → count 를 op_name 으로 변환 (1건)
+        if value == "샷":
+            n = 2 if count >= 2 else 1
+            op_id = RuleEngine._find_op_id_ruleEngine_ruleEngine(menu, f"샷 {n}개 추가")
+            if op_id is None:
+                raise rules.ParseFailedError("샷 옵션을 찾을 수 없어요.", reason="OPTION_NOT_FOUND")
+            return [FSMEvent(type=ev, parameters={"option_id": op_id})]
+
+        # 시럽 종류 불명확 → 문맥/LLM 필요
+        if value == "시럽":
+            raise rules.ParseFailedError("어떤 시럽을 추가할까요?", reason="SYRUP_UNSPECIFIED")
+
+        # 시럽 종류/휘핑 등: value 가 이미 op_name → 누적이면 count 만큼 반복
+        op_id = RuleEngine._find_op_id_ruleEngine_ruleEngine(menu, value)
+        if op_id is None:
+            raise rules.ParseFailedError(f"'{value}' 옵션을 찾을 수 없어요.", reason="OPTION_NOT_FOUND")
+        times = count if count >= 1 else 1
+        return [FSMEvent(type=ev, parameters={"option_id": op_id}) for _ in range(times)]

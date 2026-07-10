@@ -72,6 +72,15 @@ class Validator:
                 ):
                     raise ValueError("CART_ITEM_NOT_FOUND")
 
+            # 추천 요청: 선행조건 없음 (조건 해석은 Controller)
+            case Event.REQUEST_RECOMMENDATION:
+                return
+
+            # 추천 수락: 추천 목록이 있어야 함
+            case Event.ACCEPT_RECOMMENDATION:
+                if not session.recommendation_list:
+                    raise ValueError("RECOMMENDATION_NOT_FOUND")
+
             # 메뉴 정보 조회: 메뉴 존재는 Controller 검증
             case Event.REQUEST_MENU_INFO:
                 return

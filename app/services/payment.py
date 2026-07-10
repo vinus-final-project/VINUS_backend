@@ -8,6 +8,9 @@ from app.db.crud.order import Order as OrderCrud      # ← crud.order (crud.pay
 from app.db.models.orders import OdState
 from app.db.scheme.payment import PaymentConfirmResponse
 from app.memory.session.sessionCrud import SessionCrud
+from app.fsm.event import Event, FSMEvent
+from app.ai.ruleEngine.eventExecutor import EventExecutor
+from app.interface.websocket.manager import manager
 
 class Payment:
 
@@ -82,10 +85,24 @@ class Payment:
             total_price=total_price,
         )
 
-        # 7) 메모리 세션 삭제 (결제 완료로 종료)
-        await SessionCrud.delete_session_session_sessionCrud(session_id)
+        # 7) PAYMENT_SUCCESS 이벤트 발행 → FSM COMPLETE 전이 + 세션 완료(메모리 삭제)
+        #    (결제/DB 저장은 이미 끝났으므로 실패해도 응답은 성공 유지)
+        session_response = await EventExecutor.execute_ruleEngine_eventExecutor(
+            db=db,
+            session=session,
+            events=[FSMEvent(type=Event.PAYMENT_SUCCESS)],
+            message="결제가 완료되었습니다. 감사합니다.",
+        )
 
-        # 8) 응답
+        # 8) WS 연결이 있으면 결제 완료 SessionResponse push (없으면 무시)
+        try:
+            await manager.send_json_websocket_manager(
+                session_id, session_response.model_dump(mode="json"),
+            )
+        except Exception:
+            pass
+
+        # 9) 응답
         return PaymentConfirmResponse(
             success=True,
             od_id=od_id,

@@ -8,6 +8,7 @@ Rule Engine/LLM 이 생성한 Event List 를 FIFO 로 실행하고
 - Rollback 없음
 """
 
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,8 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.fsm.dispatcher import Dispatcher
 from app.fsm.event import FSMEvent
 from app.fsm.FSMstate import FSMState
-from app.memory.session.enums import SessionStatus
+from app.memory.session.enums import SessionStatus, SpeakerType
 from app.memory.session.session import Session
+from app.memory.session.sessionCrud import SessionCrud
 from app.interface.dto.sessionResponse import ResponseType, SessionResponse
 from app.interface.dto.errorMessage import get_error_message_error_message
 
@@ -32,6 +34,11 @@ class EventExecutor:
     ) -> SessionResponse:
         """Event List FIFO 실행 → SessionResponse"""
 
+        # 이전 턴 문구 잔류 방지 — 실행 시작 시 초기화
+        #   (Controller 가 실행 중 안내 문구를 세팅할 수 있음: 추천 등)
+        if session is not None:
+            session.message = None
+
         # FIFO 순차 실행
         for fsm_event in events:
             try:
@@ -42,18 +49,44 @@ class EventExecutor:
                 )
             except Exception as exc:
                 # 실패 → 즉시 중단 + 에러 응답 (message 무시, error_code 맵 우선)
-                return EventExecutor._build_error_ruleEngine_eventExecutor(
+                response = EventExecutor._build_error_ruleEngine_eventExecutor(
                     session=session,
                     exc=exc,
                 )
+                await EventExecutor._touch_and_log_ruleEngine_eventExecutor(
+                    session, response.message,
+                )
+                return response
 
-        # 성공 → 정상 안내 문구 세팅
-        #   매 실행마다 세팅(문구 없으면 None) → 이전 턴 문구 잔류 방지
-        if session is not None:
+        # 성공 → 호출자(RuleEngine/LLM) 문구가 있으면 우선 적용
+        #   (없으면 Controller 가 세팅한 문구 유지 — 시작 시 이미 초기화됨)
+        if session is not None and message is not None:
             session.message = message
 
         # 모든 이벤트 성공 (Event 없음도 여기로) → 정상 응답
-        return EventExecutor._build_success_ruleEngine_eventExecutor(session)
+        response = EventExecutor._build_success_ruleEngine_eventExecutor(session)
+        await EventExecutor._touch_and_log_ruleEngine_eventExecutor(
+            session, response.message,
+        )
+        return response
+
+    # ------------------------------------------------------------------
+    # 활동 시간 갱신(TTL) + AI 안내 문구 세션 로그 적재
+    # ------------------------------------------------------------------
+    @staticmethod
+    async def _touch_and_log_ruleEngine_eventExecutor(
+        session: Optional[Session],
+        message: Optional[str],
+    ) -> None:
+        if session is None:
+            return
+        session.last_active_at = datetime.now()
+        if message:
+            await SessionCrud.create_log_session_sessionCrud(
+                session=session,
+                speaker=SpeakerType.AI,
+                message=message,
+            )
 
     # ------------------------------------------------------------------
     # 정상 응답 조립
@@ -63,10 +96,15 @@ class EventExecutor:
         session: Session,
     ) -> SessionResponse:
         ended = session.session_status != SessionStatus.ACTIVE
+        # 응답 종류: 결제 완료(COMPLETE) > 세션 종료 > 정상
+        if session.fsm_state == FSMState.COMPLETE:
+            response_type = ResponseType.PAYMENT_SUCCESS
+        elif ended:
+            response_type = ResponseType.SESSION_END
+        else:
+            response_type = ResponseType.NORMAL
         return SessionResponse(
-            response_type=(
-                ResponseType.SESSION_END if ended else ResponseType.NORMAL
-            ),
+            response_type=response_type,
             session_id=session.session_id,
             success=True,
             message=session.message,
