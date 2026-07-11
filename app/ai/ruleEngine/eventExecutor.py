@@ -71,8 +71,19 @@ class EventExecutor:
         if any(e.type == Event.PAYMENT_CANCEL for e in events):
             # 결제 취소 → /cart 복귀 (음성 취소 대응)
             response.response_type = ResponseType.PAYMENT_CANCEL
-        elif any(e.type == Event.SHOW_CART for e in events):
-            # 장바구니 조회 → /cart ("담아줘"와 상태가 같아 이벤트로 구분)
+        elif any(
+            e.type in (
+                Event.SHOW_CART,
+                Event.REMOVE_CART_ITEM,
+                Event.CLEAR_CART,
+                Event.INCREASE_CART_ITEM,
+                Event.DECREASE_CART_ITEM,
+            )
+            for e in events
+        ):
+            # 장바구니 조회/조작 → /cart 유지
+            #   ("담아줘"와 상태가 같아 이벤트 종류로 구분 — 카트 조작 후
+            #    음성 라우팅이 /order 로 튕기지 않도록)
             response.response_type = ResponseType.SHOW_CART
 
         await EventExecutor._touch_and_log_ruleEngine_eventExecutor(

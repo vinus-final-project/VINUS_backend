@@ -110,6 +110,17 @@ class RuleParser:
                 e: Dict[str, Any] = {"action": cart_action}
                 if menu_ids and cart_action in ("REMOVE", "INCREASE", "DECREASE"):
                     e["menu"] = menu_ids[0]
+                # 개수 추출 ("두 개 빼줘" → 2) — 메뉴명 스팬은 제외하고 탐색
+                if cart_action in ("REMOVE", "INCREASE", "DECREASE"):
+                    cart_work = RuleParser._blank_spans(
+                        text, [(s_, e_) for (s_, e_, _) in menu_spans],
+                    )
+                    count = RuleParser._extract_quantity(cart_work)
+                    if count is not None:
+                        # 개수 지정 + "빼줘" = 항목 삭제가 아니라 수량 감소
+                        if cart_action == "REMOVE":
+                            e["action"] = "DECREASE"
+                        e["count"] = count
                 return "CART", e
 
         # 4) 화면 이동: 전체 메뉴(주문) 화면 복귀 — "돌아가/뒤로/메뉴 더"

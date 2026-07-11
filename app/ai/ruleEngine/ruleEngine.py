@@ -149,7 +149,24 @@ class RuleEngine:
         if ev is None:
             raise rules.ParseFailedError(
                 rules.MSG_PARSE_FAILED, reason="UNKNOWN_CART_ACTION")
-        return [FSMEvent(type=ev, parameters={"cart_item_id": cart_item_id})]
+
+        # 개수 반복 ("두 개 빼줘" → DECREASE ×2)
+        count = max(1, int(e.get("count", 1) or 1))
+        if action == "DECREASE" and session is not None:
+            # 보유 수량으로 상한 — 초과 감소 시 항목 삭제 후 에러 방지
+            item = next(
+                (ci for ci in session.cart if ci.cart_item_id == cart_item_id),
+                None,
+            )
+            if item is not None:
+                count = min(count, item.quantity)
+        if action == "REMOVE":
+            count = 1  # 항목 삭제는 1회면 충분
+
+        return [
+            FSMEvent(type=ev, parameters={"cart_item_id": cart_item_id})
+            for _ in range(count)
+        ]
 
     # cart_item_id 해석 : 메뉴 지정 → 해당 메뉴 항목(복수면 마지막 담은 것),
     #                    미지정 → 카트에 1건이면 그것, 그 외 재질문
