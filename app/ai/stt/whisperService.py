@@ -12,7 +12,7 @@ class WhisperService:
     model_size = "large-v3-turbo"
     # device = "cuda" if torch.cuda.is_available() else "cpu"
     # compute_type = "float16" if torch.cuda.is_available() else "int8"
-        # language = "ko"
+    # language = "ko"
     device = os.getenv("STT_DEVICE", "cuda")
     if device == "cuda" and not torch.cuda.is_available():
             raise RuntimeError(
