@@ -8,6 +8,8 @@ import numpy as np
 import torch
 from faster_whisper import WhisperModel
 
+from app.ai.ruleEngine import rules  # 메뉴 사전 (initial_prompt 자동 생성용)
+
 
 class WhisperService:
     # ===== 변수 선언 =====
@@ -24,15 +26,15 @@ class WhisperService:
             )
     compute_type = "float16" if device == "cuda" else "int8"
     language = "ko"
-    # 메뉴 인식 정확도 향상용 힌트 (seed 실제 메뉴 기준)
+    # 메뉴 인식 정확도 향상용 힌트 — menus.csv(메뉴 사전) 기반 자동 생성
+    #   메뉴가 바뀌면 csv 만 갱신하면 프롬프트도 따라온다.
+    #   ("곡물라떼→옥몰라테" 같은 오인식을 인식 단계에서 줄이는 목적)
     initial_prompt = (
-        "카페 음료 주문입니다. "
-        "아메리카노, 에스프레소, 카페라떼, 카푸치노, 바닐라라떼, 헤이즐넛라떼, "
-        "카라멜마끼아또, 카페모카, 연유라떼, 흑당카페라떼, 돌체라떼, 아인슈페너, "
-        "달고나라떼, 꿀아메리카노, 더치라떼, 디카페인, "
-        "녹차라떼, 초코라떼, 딸기 스무디, 복숭아 아이스티, 요거트 스무디, "
-        "아이스, 핫, 따뜻하게, 따숩게, 시원하게, 차갑게, 뜨겁게, "
-        "레귤러, 라지, 샷 추가, 시럽 추가, 휘핑 추가, 휘핑 빼주세요."
+        "카페 키오스크 주문입니다. 메뉴: "
+        + ", ".join(rules.MENU_DICTIONARY.keys())
+        + ". 옵션: 아이스, 핫, 따뜻하게, 시원하게, 레귤러, 라지, 샷 추가, "
+        "바닐라 시럽, 헤이즐넛 시럽, 카라멜 시럽, 휘핑 추가, 펄 추가, "
+        "얼음 적게, 얼음 많이, 당도 50, 당도 100, 주세요, 빼주세요."
     )
 
     # ===== 할루시네이션 필터 =====
