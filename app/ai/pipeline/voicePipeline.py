@@ -97,6 +97,22 @@ class VoicePipeline:
             if parse_result.intent == "NAVIGATE":
                 return VoicePipeline._build_navigate_pipeline_voicePipeline(session)
 
+            # 합계 질문 ("총 얼마야/합계") — 상태 변경 없이 총액 안내
+            if (
+                parse_result.intent == "INFO"
+                and parse_result.entities.get("type") == "TOTAL"
+            ):
+                if session is None or not session.cart:
+                    return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                        session, "아직 담으신 메뉴가 없어요.",
+                    )
+                total = sum(
+                    ci.unit_price * ci.quantity for ci in session.cart
+                )
+                return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                    session, f"현재 주문 금액은 {total:,}원입니다.",
+                )
+
             # RuleEngine : ParseResult → List[FSMEvent]
             #   (옵션 op_id 해석 실패 등도 RuleParseError 로 폴백 처리)
             events = await RuleEngine.build_events_ruleEngine_ruleEngine(
@@ -171,7 +187,12 @@ class VoicePipeline:
             fsm_state=session.fsm_state if session else FSMState.INIT,
             order_type=session.order_type if session else None,
             order_item=session.order_item if session else None,
+            current_menu=session.current_menu if session else None,
             cart=session.cart if session else [],
+            total_price=(
+                sum(ci.unit_price * ci.quantity for ci in session.cart)
+                if session else 0
+            ),
             recommendation_list=session.recommendation_list if session else [],
             error_code=None,
             session_end=False,
