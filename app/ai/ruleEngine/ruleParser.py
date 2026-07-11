@@ -125,7 +125,10 @@ class RuleParser:
 
         # 4) 카테고리 전환: "커피 메뉴 보여줘" — NAVIGATE 보다 먼저 검사
         #    ("메뉴 보여" 키워드에 선점당하지 않도록)
-        if not menu_ids:
+        #    ⚠ 추천 발화("커피 추천해줘")는 하이재킹하지 않고 RECOMMEND 로 넘김
+        if not menu_ids and not any(
+            k in text for k in rules.RECOMMEND_REQUEST_KEYWORDS
+        ):
             for kw, c_name in rules.CATEGORY_KEYWORDS.items():
                 if kw in text:
                     return "NAVIGATE", {"target": "MENU", "category": c_name}
