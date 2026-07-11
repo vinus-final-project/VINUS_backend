@@ -26,6 +26,7 @@ from app.ai.ruleEngine.ruleParser import RuleParser
 from app.ai.ruleEngine.ruleEngine import RuleEngine
 from app.ai.ruleEngine.eventExecutor import EventExecutor
 from app.ai.pipeline.aiPipeline import AiPipeline
+from app.fsm.event import Event, FSMEvent
 from app.fsm.FSMstate import FSMState
 from app.interface.dto.normalizeResult import NormalizeResult
 from app.interface.dto.parseResult import ParseResult
@@ -101,6 +102,15 @@ class VoicePipeline:
             # 화면 이동 발화 ("돌아가/메뉴 더") — FSM 이벤트 없이 SHOW_MENU 응답
             #   (상태 변화가 없어 프론트가 구분할 수 없으므로 응답 타입으로 전달)
             if parse_result.intent == "NAVIGATE":
+                # 작성 중 주문이 있으면 취소하고 이동
+                #   (터치 orderDetail '취소' 버튼과 동일 — "뒤로 갈래" 후
+                #    다른 메뉴 선택 시 ORDER_ITEM_EXISTS 로 막히는 문제 방지)
+                if session is not None and session.order_item is not None:
+                    await EventExecutor.execute_ruleEngine_eventExecutor(
+                        db=db,
+                        session=session,
+                        events=[FSMEvent(type=Event.CANCEL_ORDER_ITEM)],
+                    )
                 return VoicePipeline._build_navigate_pipeline_voicePipeline(
                     session, parse_result.entities.get("category"),
                 )

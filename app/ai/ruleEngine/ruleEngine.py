@@ -108,7 +108,13 @@ class RuleEngine:
     ) -> List[FSMEvent]:
         action = e.get("action")
         if action == "SHOW":
-            return [FSMEvent(type=Event.SHOW_CART)]
+            # 화면 이탈 발화 — 작성 중 주문은 취소하고 카트로
+            #   (화면은 떠났는데 order_item 만 남는 "유령 주문" 방지)
+            events: List[FSMEvent] = []
+            if session is not None and session.order_item is not None:
+                events.append(FSMEvent(type=Event.CANCEL_ORDER_ITEM))
+            events.append(FSMEvent(type=Event.SHOW_CART))
+            return events
         if action == "CLEAR":
             return [FSMEvent(type=Event.CLEAR_CART)]
 
@@ -126,7 +132,23 @@ class RuleEngine:
         ):
             return [FSMEvent(type=Event.CANCEL_ORDER_ITEM)]
 
+        # "메이플 크룽지 하나 추가/빼줘" 인데 그 메뉴를 지금 작성 중이면
+        # 카트/신규주문이 아니라 현재 주문(order_item) 수량 증감으로 해석
+        if (
+            menu_id is not None
+            and session is not None
+            and session.order_item is not None
+            and session.order_item.menu_id == menu_id
+            and action in ("INCREASE", "DECREASE")
+        ):
+            step = max(1, int(e.get("count", 1) or 1))
+            base = session.order_item.quantity
+            new_qty = base + step if action == "INCREASE" else max(1, base - step)
+            return [FSMEvent(type=Event.SET_QUANTITY,
+                             parameters={"quantity": new_qty})]
+
         # "아메리카노 하나 추가" 인데 그 메뉴가 카트에 없으면 신규 주문으로 해석
+        #   (다른 메뉴를 작성 중이었다면 폐기 후 시작 — 새 메뉴 발화 = 이전 포기 의도)
         if (
             action == "INCREASE"
             and menu_id is not None
@@ -135,7 +157,13 @@ class RuleEngine:
                 or not any(ci.menu_id == menu_id for ci in session.cart)
             )
         ):
-            return [FSMEvent(type=Event.SELECT_MENU, parameters={"menu_id": menu_id})]
+            events = []
+            if session is not None and session.order_item is not None:
+                events.append(FSMEvent(type=Event.CANCEL_ORDER_ITEM))
+            events.append(
+                FSMEvent(type=Event.SELECT_MENU, parameters={"menu_id": menu_id})
+            )
+            return events
 
         # 메뉴 지정 없는 "추가/빼줘" 인데 주문 작성 중이면
         # 카트가 아니라 현재 주문(order_item) 수량 증감으로 해석
@@ -215,9 +243,20 @@ class RuleEngine:
         events: List[FSMEvent] = []
         menu_id = e.get("menu")
 
-        # 1) SELECT_MENU
+        # 1) SELECT_MENU (+ 작성 중 주문 정리)
+        #   - 같은 메뉴 재언급: 새로 만들지 않고 옵션/수량만 이어서 적용
+        #   - 다른 메뉴 발화: 이전 작성 중 주문 폐기 후 새 주문
+        #     (새 메뉴를 말했다 = 이전 걸 포기한다는 의도 — ORDER_ITEM_EXISTS 방지)
         if menu_id is not None:
-            events.append(FSMEvent(type=Event.SELECT_MENU, parameters={"menu_id": menu_id}))
+            current = session.order_item if session is not None else None
+            if current is not None and current.menu_id == menu_id:
+                pass  # 같은 메뉴 — SELECT_MENU 생략, 아래 옵션/수량만 적용
+            else:
+                if current is not None:
+                    events.append(FSMEvent(type=Event.CANCEL_ORDER_ITEM))
+                events.append(
+                    FSMEvent(type=Event.SELECT_MENU, parameters={"menu_id": menu_id})
+                )
 
         required = e.get("required_option", [])
         optional = e.get("optional_option", [])

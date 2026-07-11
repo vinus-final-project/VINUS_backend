@@ -37,6 +37,20 @@ class Normalizer:
     # 자모 문자열만 뽑은 리스트 (RapidFuzz 검색 대상)
     dictionary_jamo: List[str] = []
 
+    # 자모 혼동 접기(folding) — 발음상 헷갈리는 자모를 같은 문자로 접어서 비교
+    #   ("옥몰라테"→"곡물라떼": ㅌ↔ㄸ, ㅗ↔ㅜ 접으면 유사도 70→90 으로 상승)
+    #   비교 전용이며 치환 결과는 항상 원본 표준명 사용. 임계값은 그대로 85.
+    jamo_fold_map = str.maketrans({
+        # 격음/경음 → 평음 (STT 혼동 잦음)
+        "ㅋ": "ㄱ", "ㄲ": "ㄱ",
+        "ㅌ": "ㄷ", "ㄸ": "ㄷ",
+        "ㅍ": "ㅂ", "ㅃ": "ㅂ",
+        "ㅊ": "ㅈ", "ㅉ": "ㅈ",
+        "ㅆ": "ㅅ",
+        # 모음 혼동
+        "ㅜ": "ㅗ", "ㅐ": "ㅔ", "ㅒ": "ㅖ",
+    })
+
     # ===== 함수 정의 =====
     # 한글 음절을 자모로 분해 (한글 아닌 글자는 그대로)
     @staticmethod
@@ -83,9 +97,15 @@ class Normalizer:
         )
         all_terms = menu_terms + option_terms
 
-        # (원본, 자모) 쌍으로 저장 + 자모만 별도 리스트
+        # (원본, 접은 자모) 쌍으로 저장 + 접은 자모만 별도 리스트
+        #   비교는 folded 자모끼리, 치환은 원본 표준명으로
         Normalizer.dictionary = [
-            (term, Normalizer.decompose_rapidfuzz_normalizer(term))
+            (
+                term,
+                Normalizer.decompose_rapidfuzz_normalizer(term).translate(
+                    Normalizer.jamo_fold_map
+                ),
+            )
             for term in all_terms
         ]
         Normalizer.dictionary_jamo = [
@@ -115,8 +135,18 @@ class Normalizer:
                 if window == 1 and len(candidate) < Normalizer.min_token_length:
                     continue
 
-                # 후보를 자모로 변환해서 사전 자모와 비교
-                candidate_jamo = Normalizer.decompose_rapidfuzz_normalizer(candidate)
+                # 숫자(수량) 토큰은 묶음 병합에서 제외
+                #   ("바닐라 시럽 2개" 가 "바닐라 시럽" 으로 치환되며
+                #    수량이 사라지는 문제 방지 — 숫자는 그대로 통과시킨다)
+                if window > 1 and any(
+                    any(ch.isdigit() for ch in tok) for tok in phrase_tokens
+                ):
+                    continue
+
+                # 후보를 자모로 변환 + 혼동 접기 후 사전(접은 자모)과 비교
+                candidate_jamo = Normalizer.decompose_rapidfuzz_normalizer(
+                    candidate
+                ).translate(Normalizer.jamo_fold_map)
                 match = process.extractOne(
                     candidate_jamo,
                     Normalizer.dictionary_jamo,
