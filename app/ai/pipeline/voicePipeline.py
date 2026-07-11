@@ -73,11 +73,17 @@ class VoicePipeline:
         session: Optional[Session],
         pcm_bytes: bytes,
         sample_rate: int = 16000,
-    ) -> SessionResponse:
+    ) -> Optional[SessionResponse]:
+        """PCM → SessionResponse. 환각 필터로 폐기된 발화는 None 반환."""
         session_id = session.session_id if session else None
 
         # STT → RapidFuzz (폴백 시 LLM 에 넘길 보정 텍스트 확보)
         text = await WhisperService.transcribe_stt_whisper(pcm_bytes, sample_rate)
+
+        # 환각 필터로 폐기된(빈) 발화 — 응답 없이 조용히 무시
+        if not text.strip():
+            return None
+
         normalized = await Normalizer.normalize_rapidfuzz_normalizer(text)
 
         # USER 발화 세션 로그 적재 (세션 생성 전 첫 발화는 제외)

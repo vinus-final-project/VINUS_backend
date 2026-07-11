@@ -84,6 +84,12 @@ async def lifespan(app: FastAPI):
     # 세션 TTL 스위퍼 시작
     sweeper_task = asyncio.create_task(_sweep_expired_sessions())
 
+    # Whisper 모델 웜업 — 실제 서버 프로세스에서만 1회 로드
+    #   (import 시점 로드였을 때 --reload 의 reloader 프로세스까지
+    #    이중 로드되던 문제 방지. 첫 발화 지연도 제거)
+    from app.ai.stt.whisperService import WhisperService
+    await asyncio.to_thread(WhisperService.get_model_stt_whisper)
+
     yield
 
     # 스위퍼 정지 후 엔진 정리
