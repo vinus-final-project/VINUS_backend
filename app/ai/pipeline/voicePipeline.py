@@ -101,7 +101,9 @@ class VoicePipeline:
             # 화면 이동 발화 ("돌아가/메뉴 더") — FSM 이벤트 없이 SHOW_MENU 응답
             #   (상태 변화가 없어 프론트가 구분할 수 없으므로 응답 타입으로 전달)
             if parse_result.intent == "NAVIGATE":
-                return VoicePipeline._build_navigate_pipeline_voicePipeline(session)
+                return VoicePipeline._build_navigate_pipeline_voicePipeline(
+                    session, parse_result.entities.get("category"),
+                )
 
             # 합계 질문 ("총 얼마야/합계") — 상태 변경 없이 총액 안내
             if (
@@ -149,11 +151,13 @@ class VoicePipeline:
 
     # ------------------------------------------------------------------
     # 화면 이동 응답 : 전체 메뉴 화면 복귀 (상태 변경 없음)
+    #   category 지정 시 프론트가 해당 카테고리 탭으로 전환
     #   세션 없으면(주문 시작 전) 안내 문구로 대체
     # ------------------------------------------------------------------
     @staticmethod
     def _build_navigate_pipeline_voicePipeline(
         session: Optional[Session],
+        category: Optional[str] = None,
     ) -> SessionResponse:
         if session is None:
             return VoicePipeline._build_guidance_pipeline_voicePipeline(
@@ -163,7 +167,11 @@ class VoicePipeline:
             response_type=ResponseType.SHOW_MENU,
             session_id=session.session_id,
             success=True,
-            message="메뉴 화면으로 돌아갈게요.",
+            message=(
+                f"{category} 메뉴를 보여드릴게요."
+                if category else "메뉴 화면으로 돌아갈게요."
+            ),
+            category=category,
             fsm_state=session.fsm_state,
             order_type=session.order_type,
             order_item=session.order_item,
