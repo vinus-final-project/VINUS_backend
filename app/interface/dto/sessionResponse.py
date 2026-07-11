@@ -34,3 +34,4 @@ class SessionResponse(BaseModel):
     recommendation_list: list[int] = Field(default_factory=list)   # 추천 메뉴
     error_code: Optional[str] = None                               # 오류 코드
     session_end: bool = False                                       # 세션 종료 여부
+    category: Optional[str] = None                                  # 카테고리 전환 힌트 (SHOW_MENU + c_name, 음성 "커피 메뉴 보여줘")

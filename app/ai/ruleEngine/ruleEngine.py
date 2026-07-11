@@ -137,6 +137,21 @@ class RuleEngine:
         ):
             return [FSMEvent(type=Event.SELECT_MENU, parameters={"menu_id": menu_id})]
 
+        # 메뉴 지정 없는 "추가/빼줘" 인데 주문 작성 중이면
+        # 카트가 아니라 현재 주문(order_item) 수량 증감으로 해석
+        #   ("옵션 고르는 중 '두 개 추가해줘'" = 잔 수 변경 의도)
+        if (
+            menu_id is None
+            and session is not None
+            and session.order_item is not None
+            and action in ("INCREASE", "DECREASE")
+        ):
+            step = max(1, int(e.get("count", 1) or 1))
+            base = session.order_item.quantity
+            new_qty = base + step if action == "INCREASE" else max(1, base - step)
+            return [FSMEvent(type=Event.SET_QUANTITY,
+                             parameters={"quantity": new_qty})]
+
         cart_item_id = RuleEngine._resolve_cart_item_ruleEngine_ruleEngine(
             session, menu_id,
         )
