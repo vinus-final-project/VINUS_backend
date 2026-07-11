@@ -73,11 +73,17 @@ class VoicePipeline:
         session: Optional[Session],
         pcm_bytes: bytes,
         sample_rate: int = 16000,
-    ) -> SessionResponse:
+    ) -> Optional[SessionResponse]:
+        """PCM → SessionResponse. 환각 필터로 폐기된 발화는 None 반환."""
         session_id = session.session_id if session else None
 
         # STT → RapidFuzz (폴백 시 LLM 에 넘길 보정 텍스트 확보)
         text = await WhisperService.transcribe_stt_whisper(pcm_bytes, sample_rate)
+
+        # 환각 필터로 폐기된(빈) 발화 — 응답 없이 조용히 무시
+        if not text.strip():
+            return None
+
         normalized = await Normalizer.normalize_rapidfuzz_normalizer(text)
 
         # USER 발화 세션 로그 적재 (세션 생성 전 첫 발화는 제외)
@@ -91,6 +97,28 @@ class VoicePipeline:
         try:
             nr = NormalizeResult(session_id=session_id, text=normalized)
             parse_result = RuleParser.parse_ruleEngine_ruleParser(nr)
+
+            # 화면 이동 발화 ("돌아가/메뉴 더") — FSM 이벤트 없이 SHOW_MENU 응답
+            #   (상태 변화가 없어 프론트가 구분할 수 없으므로 응답 타입으로 전달)
+            if parse_result.intent == "NAVIGATE":
+                return VoicePipeline._build_navigate_pipeline_voicePipeline(session)
+
+            # 합계 질문 ("총 얼마야/합계") — 상태 변경 없이 총액 안내
+            if (
+                parse_result.intent == "INFO"
+                and parse_result.entities.get("type") == "TOTAL"
+            ):
+                if session is None or not session.cart:
+                    return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                        session, "아직 담으신 메뉴가 없어요.",
+                    )
+                total = sum(
+                    ci.unit_price * ci.quantity for ci in session.cart
+                )
+                return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                    session, f"현재 주문 금액은 {total:,}원입니다.",
+                )
+
             # RuleEngine : ParseResult → List[FSMEvent]
             #   (옵션 op_id 해석 실패 등도 RuleParseError 로 폴백 처리)
             events = await RuleEngine.build_events_ruleEngine_ruleEngine(
@@ -120,6 +148,36 @@ class VoicePipeline:
         )
 
     # ------------------------------------------------------------------
+    # 화면 이동 응답 : 전체 메뉴 화면 복귀 (상태 변경 없음)
+    #   세션 없으면(주문 시작 전) 안내 문구로 대체
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _build_navigate_pipeline_voicePipeline(
+        session: Optional[Session],
+    ) -> SessionResponse:
+        if session is None:
+            return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                session, "먼저 매장 또는 포장을 선택해 주세요.",
+            )
+        return SessionResponse(
+            response_type=ResponseType.SHOW_MENU,
+            session_id=session.session_id,
+            success=True,
+            message="메뉴 화면으로 돌아갈게요.",
+            fsm_state=session.fsm_state,
+            order_type=session.order_type,
+            order_item=session.order_item,
+            current_menu=session.current_menu,
+            cart=session.cart,
+            total_price=sum(
+                ci.unit_price * ci.quantity for ci in session.cart
+            ),
+            recommendation_list=session.recommendation_list,
+            error_code=None,
+            session_end=False,
+        )
+
+    # ------------------------------------------------------------------
     # 규칙 실패 시 재안내 응답 (상태 변경 없음)
     # ------------------------------------------------------------------
     @staticmethod
@@ -135,7 +193,12 @@ class VoicePipeline:
             fsm_state=session.fsm_state if session else FSMState.INIT,
             order_type=session.order_type if session else None,
             order_item=session.order_item if session else None,
+            current_menu=session.current_menu if session else None,
             cart=session.cart if session else [],
+            total_price=(
+                sum(ci.unit_price * ci.quantity for ci in session.cart)
+                if session else 0
+            ),
             recommendation_list=session.recommendation_list if session else [],
             error_code=None,
             session_end=False,

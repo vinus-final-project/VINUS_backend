@@ -64,13 +64,19 @@ class RecommendationController:
     async def accept_recommendation_controllers_recommendationController(
         db: AsyncSession,
         session: Session,
+        index: int = 1,
     ) -> None:
-        """추천 목록 첫 메뉴 → OrderItem 생성 (목록은 소진 처리)"""
+        """추천 목록 index 번째 메뉴 → OrderItem 생성 (목록은 소진 처리)
+
+        index: 1부터 시작 ("두 번째 걸로" → 2). 기본 1 = 첫 번째.
+        """
 
         if not session.recommendation_list:
             raise ValueError("RECOMMENDATION_NOT_FOUND")
+        if index < 1 or index > len(session.recommendation_list):
+            raise ValueError("RECOMMENDATION_NOT_FOUND")
 
-        menu_id = session.recommendation_list[0]
+        menu_id = session.recommendation_list[index - 1]
 
         # OrderController 재사용 (ORDER_ITEM_EXISTS / MENU_NOT_FOUND 검증 포함)
         await OrderController.create_order_item_controllers_orderController(

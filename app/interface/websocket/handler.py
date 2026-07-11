@@ -141,10 +141,55 @@ async def handle_websocket_handler(
 
             # ── PCM Binary 청크 (SP~EP 사이 실시간 스트리밍) ─
             if message.get("bytes") is not None:
+<<<<<<< HEAD
                 audio_buf.append(message["bytes"])
                 # 상한 방어: UTTER_END 유실 등으로 무한 누적 방지
                 if sum(len(b) for b in audio_buf) > MAX_UTTER_BYTES:
                     await process_utterance()
+=======
+                # VAD: 청크를 세그먼터에 밀어넣고, 완성된 발화만 파이프라인으로
+                for utterance in segmenter.feed_vad_vadService(message["bytes"]):
+                    # ① session_id: metadata 우선, 없으면 이 연결의 bind 키
+                    sid = stream_meta.get("session_id") or (
+                        key if not key.startswith("anon-") else None
+                    )
+
+                    # ② 메모리 세션 조회 (첫 발화 전이면 None → INIT 취급)
+                    session = None
+                    if sid:
+                        try:
+                            session = await SessionCrud.get_session_session_sessionCrud(sid)
+                        except KeyError:
+                            session = None
+
+                    # ③ VoicePipeline — STT → RapidFuzz → RuleParser
+                    #    → RuleEngine → EventExecutor → SessionResponse
+                    #    (WS 는 Depends 불가 → DB 세션 직접 생성)
+                    try:
+                        async with AsyncSessionLocal() as db:
+                            result = await VoicePipeline.process_pipeline_voicePipeline(
+                                db=db,
+                                session=session,
+                                pcm_bytes=utterance,
+                                sample_rate=stream_meta.get("sample_rate", 16000),
+                            )
+                    except Exception as exc:
+                        # 내부 오류 — 연결은 유지하고 다음 발화 계속 수신
+                        print(f"[WS] 파이프라인 오류 (session={sid}): {exc}")
+                        continue
+
+                    # 환각 필터로 폐기된 발화 — 응답 없이 다음 발화 대기
+                    if result is None:
+                        continue
+
+                    # ④ 첫 발화로 세션이 생성된 경우 — 연결 키 재바인딩
+                    if result.session_id and result.session_id != key:
+                        manager.bind_websocket_manager(key, result.session_id)
+                        key = result.session_id
+
+                    # ⑤ SessionResponse 송신 (이 연결로 직접 전송)
+                    await websocket.send_json(result.model_dump(mode="json"))
+>>>>>>> 2f2a239fda393b27d887830d4776b24c109f00b6
                 continue
     except WebSocketDisconnect:
         pass
