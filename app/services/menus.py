@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.crud.menus import Menus as MenusCrud
+from app.db.crud.categories import Categories as CategoriesCrud
 
 class Menus:
 
@@ -21,6 +22,21 @@ class Menus:
             })
             
         return {"menus": response_menus}
+
+    # R - 부트스트랩 일괄 조회: 카테고리 + 전체 메뉴 (초기 렌더 1회 호출용)
+    @staticmethod
+    async def get_bootstrap_services_menus(db: AsyncSession):
+        db_categories = await CategoriesCrud.get_all_categories_crud_categories(db)
+        db_menus = await MenusCrud.get_all_menus_crud_menus(db)
+        return {
+            "categories": [
+                {"c_id": c.c_id, "c_name": c.c_name} for c in db_categories
+            ],
+            "menus": [
+                {"m_id": m.m_id, "c_id": m.c_id, "m_name": m.m_name, "m_price": m.m_price}
+                for m in db_menus
+            ],
+        }
 
     # R - 추천 후보 메뉴 조회 (키워드 매칭 실패 시 기본 상위 메뉴로 폴백)
     @staticmethod
