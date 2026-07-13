@@ -18,6 +18,7 @@ class ResponseType(str, Enum):
     SESSION_END = "SESSION_END"
     SHOW_CART = "SHOW_CART"    # 화면 이동: 장바구니 ("장바구니 보여줘")
     SHOW_MENU = "SHOW_MENU"    # 화면 이동: 전체 메뉴 ("돌아가기" / "메뉴 더 볼게")
+    SHOW_PAY = "SHOW_PAY"      # 화면 이동: 결제창 ("카드로 할게요")
 
 
 class SessionResponse(BaseModel):
