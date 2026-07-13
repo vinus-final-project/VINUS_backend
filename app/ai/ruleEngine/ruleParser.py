@@ -158,6 +158,16 @@ class RuleParser:
                 if kw in text:
                     return "NAVIGATE", {"target": "MENU", "category": c_name}
 
+        # 4-1) 페이지 넘김: "다음 페이지/넘겨" — 방향 힌트만 전달
+        #    PREV 를 먼저 검사 ("이전으로 넘겨줘"의 '넘겨'가 NEXT 로 오판되지 않게)
+        #    옵션 단어가 있으면 스킵 — STT 가 "시럽 넣어줘"를 "넘겨줘"로
+        #    받아써도 페이지 넘김이 아니라 옵션 추가로 처리되도록
+        if not menu_ids and not has_option_word:
+            if any(k in text for k in rules.PAGE_PREV_KEYWORDS):
+                return "NAVIGATE", {"target": "MENU", "page": "PREV"}
+            if any(k in text for k in rules.PAGE_NEXT_KEYWORDS):
+                return "NAVIGATE", {"target": "MENU", "page": "NEXT"}
+
         # 5) 화면 이동: 전체 메뉴(주문) 화면 복귀 — "돌아가/뒤로/메뉴 더"
         #    (상태 변경 없음 — voicePipeline 이 SHOW_MENU 응답으로 처리)
         if not menu_ids and any(k in text for k in rules.NAVIGATE_MENU_KEYWORDS):
@@ -169,7 +179,9 @@ class RuleParser:
             return "INFO", {"type": "TOTAL"}
 
         # 6) 추천 수락(서수): "두 번째 걸로 주세요"
-        if not menu_ids:
+        #    옵션 단어가 있으면 스킵 — "시럽 3번 (추가)"의 '3번'이
+        #    추천 서수로 오판되지 않도록 (옵션 반복 횟수로 처리)
+        if not menu_ids and not has_option_word:
             for word, ordinal in rules.ORDINAL_KEYWORDS.items():
                 if word in text:
                     return "RECOMMEND", {"action": "ACCEPT", "index": ordinal}
