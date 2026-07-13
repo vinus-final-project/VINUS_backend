@@ -160,7 +160,9 @@ class RuleParser:
 
         # 4-1) 페이지 넘김: "다음 페이지/넘겨" — 방향 힌트만 전달
         #    PREV 를 먼저 검사 ("이전으로 넘겨줘"의 '넘겨'가 NEXT 로 오판되지 않게)
-        if not menu_ids:
+        #    옵션 단어가 있으면 스킵 — STT 가 "시럽 넣어줘"를 "넘겨줘"로
+        #    받아써도 페이지 넘김이 아니라 옵션 추가로 처리되도록
+        if not menu_ids and not has_option_word:
             if any(k in text for k in rules.PAGE_PREV_KEYWORDS):
                 return "NAVIGATE", {"target": "MENU", "page": "PREV"}
             if any(k in text for k in rules.PAGE_NEXT_KEYWORDS):
