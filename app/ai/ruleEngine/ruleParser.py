@@ -179,7 +179,9 @@ class RuleParser:
             return "INFO", {"type": "TOTAL"}
 
         # 6) 추천 수락(서수): "두 번째 걸로 주세요"
-        if not menu_ids:
+        #    옵션 단어가 있으면 스킵 — "시럽 3번 (추가)"의 '3번'이
+        #    추천 서수로 오판되지 않도록 (옵션 반복 횟수로 처리)
+        if not menu_ids and not has_option_word:
             for word, ordinal in rules.ORDINAL_KEYWORDS.items():
                 if word in text:
                     return "RECOMMEND", {"action": "ACCEPT", "index": ordinal}

@@ -86,8 +86,11 @@ class RuleEngine:
         if e.get("action") == "ACCEPT":
             # "그걸로 주세요" 문맥 해석:
             #   추천 목록이 없는데 주문 작성 중이면 = 선택 완료(담기) 의도
+            #   단, 서수 지정("3번째 걸로")은 명확한 추천 수락 의도이므로
+            #   담기로 바꾸지 않고 아래에서 목록 검증 에러 안내를 태운다
             if (
-                (session is None or not session.recommendation_list)
+                e.get("index") is None
+                and (session is None or not session.recommendation_list)
                 and session is not None
                 and session.order_item is not None
             ):
