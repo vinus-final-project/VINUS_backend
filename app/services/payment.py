@@ -1,8 +1,9 @@
+import asyncio
 import base64
 import httpx
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-
+ 
 from app.core.settings import settings
 from app.db.crud.order import Order as OrderCrud      # ← crud.order (crud.payment 아님)
 from app.db.models.orders import OdState
@@ -11,6 +12,7 @@ from app.memory.session.sessionCrud import SessionCrud
 from app.fsm.event import Event, FSMEvent
 from app.ai.ruleEngine.eventExecutor import EventExecutor
 from app.interface.websocket.manager import manager
+from app.services.receipt import Receipt
 
 class Payment:
 
@@ -85,6 +87,15 @@ class Payment:
             total_price=total_price,
         )
 
+        # 6.5) 영수증 데이터 준비 — 조회/변환 실패해도 결제 흐름 유지
+        receipt_data = None
+        try:
+            db_order = await OrderCrud.get_paid_order_crud_order(db=db, od_id=od_id)
+            if db_order is not None:
+                receipt_data = Receipt.build_from_order_services_receipt(db_order)
+        except Exception as e:
+            print(f"[RECEIPT] 영수증 데이터 준비 실패: od_id={od_id} — {e}")
+
         # 7) PAYMENT_SUCCESS 이벤트 발행 → FSM COMPLETE 전이 + 세션 완료(메모리 삭제)
         #    (결제/DB 저장은 이미 끝났으므로 실패해도 응답은 성공 유지)
         session_response = await EventExecutor.execute_ruleEngine_eventExecutor(
@@ -101,6 +112,10 @@ class Payment:
             )
         except Exception:
             pass
+
+        # 8.5) 영수증 자동 출력 — 백그라운드 (출력 실패해도 응답은 성공 유지)
+        if receipt_data is not None:
+            asyncio.create_task(Receipt.print_services_receipt(receipt_data))
 
         # 9) 응답
         return PaymentConfirmResponse(

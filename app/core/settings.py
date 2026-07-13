@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     # 토스페이먼츠
     toss_secret_key: str = Field(..., alias="TOSS_SECRET_KEY")
     
+    # 영수증 프린터 (Windows 프린터 이름 — 비우면 출력 건너뜀)
+    printer_name: str = Field("", alias="PRINTER_NAME")
+    store_name: str = Field("VINUS", alias="STORE_NAME")
+
     # ===== 함수(프로퍼티) 정의 =====
     # DB 접속 정보 (user:password@host:port/name)
     @property
