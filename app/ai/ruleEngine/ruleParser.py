@@ -100,6 +100,13 @@ class RuleParser:
             if kw in text:
                 return "SESSION", {"order_type": ot}
 
+        # 결제수단 발화 — "카드로 할게/카드로 결제" 는 결제창 진행,
+        #   "현금" 은 미지원 안내. PAYMENT_KEYWORDS("결제") 보다 먼저 검사.
+        if not menu_ids and any(k in text for k in rules.PAY_CARD_KEYWORDS):
+            return "NAVIGATE", {"target": "PAY", "method": "CARD"}
+        if not menu_ids and any(k in text for k in rules.PAY_CASH_KEYWORDS):
+            return "NAVIGATE", {"target": "PAY", "method": "CASH"}
+
         if any(k in text for k in rules.PAYMENT_KEYWORDS):
             return "PAYMENT", {"action": "START"}
 

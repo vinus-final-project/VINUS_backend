@@ -32,6 +32,9 @@ CANCEL_KEYWORDS = ("취소",)
 ORDER_TYPE_KEYWORDS = {"매장": "STORE", "먹고": "STORE", "마시고": "STORE",
                        "포장": "TAKEOUT", "테이크아웃": "TAKEOUT", "가져갈": "TAKEOUT", "갖고": "TAKEOUT", "들고": "TAKEOUT"}
 PAYMENT_KEYWORDS = ("결제", "계산", "지불")
+# 결제수단 발화 — 카드: 결제창(/pay) 진행, 현금: 미지원 안내
+PAY_CARD_KEYWORDS = ("카드",)          # "신용카드/체크카드" 포함 (substring)
+PAY_CASH_KEYWORDS = ("현금",)
 CART_CLEAR_KEYWORDS = ("전체 삭제", "다 빼", "비워", "다 지워")
 CART_INCREASE_KEYWORDS = ("하나 더", "더 담", "증가", "늘려", "추가")
 # 발화 별칭 — 파싱 전 치환 (관용 표현 + STT 상습 오인식 정규화)
@@ -80,6 +83,7 @@ INFO_KEYWORDS = ("뭐 있어", "메뉴 알려", "무슨 메뉴", "설명",
 SKIP_OPTIONAL_KEYWORDS = (
     "안 할게", "안할래", "그대로", "없어요", "괜찮아요", "그거면",
     "완료", "담아", "다 골랐", "이대로", "이걸로",   # 주문/선택 완료 발화
+    "그렇게", "그걸로 주", "됐어요", "충분해",       # "그렇게 주세요" 등
 )
 
 # --- 옵션: 단일선택(교체) 그룹 — 값=표준 op_name ---

@@ -41,7 +41,7 @@ class RuleEngine:
         if intent == "PAYMENT":
             return [FSMEvent(type=Event.START_PAYMENT)]
         if intent == "RECOMMEND":
-            return RuleEngine._recommend_events_ruleEngine_ruleEngine(entities)
+            return RuleEngine._recommend_events_ruleEngine_ruleEngine(session, entities)
         if intent == "INFO":
             return RuleEngine._info_events_ruleEngine_ruleEngine(session, entities)
         if intent == "CART":
@@ -80,8 +80,18 @@ class RuleEngine:
 
     # ---------------- RECOMMEND ----------------
     @staticmethod
-    def _recommend_events_ruleEngine_ruleEngine(e: Dict[str, Any]) -> List[FSMEvent]:
+    def _recommend_events_ruleEngine_ruleEngine(
+        session: Optional[Session], e: Dict[str, Any],
+    ) -> List[FSMEvent]:
         if e.get("action") == "ACCEPT":
+            # "그걸로 주세요" 문맥 해석:
+            #   추천 목록이 없는데 주문 작성 중이면 = 선택 완료(담기) 의도
+            if (
+                (session is None or not session.recommendation_list)
+                and session is not None
+                and session.order_item is not None
+            ):
+                return [FSMEvent(type=Event.SKIP_OPTIONAL_OPTION)]
             # index: "두 번째 걸로" 서수 선택 (기본 1 = 첫 번째)
             return [FSMEvent(type=Event.ACCEPT_RECOMMENDATION,
                              parameters={"index": e.get("index", 1)})]

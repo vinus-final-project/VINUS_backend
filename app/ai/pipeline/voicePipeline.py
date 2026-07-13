@@ -102,6 +102,12 @@ class VoicePipeline:
             # 화면 이동 발화 ("돌아가/메뉴 더") — FSM 이벤트 없이 SHOW_MENU 응답
             #   (상태 변화가 없어 프론트가 구분할 수 없으므로 응답 타입으로 전달)
             if parse_result.intent == "NAVIGATE":
+                # 결제창 진행 ("카드로 할게요" / "현금으로")
+                if parse_result.entities.get("target") == "PAY":
+                    return await VoicePipeline._handle_pay_pipeline_voicePipeline(
+                        db, session, parse_result.entities.get("method"),
+                    )
+
                 # 작성 중 주문이 있으면 취소하고 이동
                 #   (터치 orderDetail '취소' 버튼과 동일 — "뒤로 갈래" 후
                 #    다른 메뉴 선택 시 ORDER_ITEM_EXISTS 로 막히는 문제 방지)
@@ -158,6 +164,50 @@ class VoicePipeline:
         return await EventExecutor.execute_ruleEngine_eventExecutor(
             db=db, session=session, events=events,
         )
+
+    # ------------------------------------------------------------------
+    # 결제수단 발화 처리 ("카드로 할게요")
+    #   - 현금        → 미지원 안내
+    #   - PAYMENT 상태 → SHOW_PAY (결제창으로)
+    #   - ORDERING    → START_PAYMENT 실행 후 SHOW_PAY
+    #                   (카트에서 "카드로 결제할게" 한 마디에 결제창 직행.
+    #                    빈 카트/작성 중 주문 검증은 START_PAYMENT 이 처리)
+    # ------------------------------------------------------------------
+    @staticmethod
+    async def _handle_pay_pipeline_voicePipeline(
+        db: AsyncSession,
+        session: Optional[Session],
+        method: Optional[str],
+    ) -> SessionResponse:
+        if session is None:
+            return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                session, "먼저 매장 또는 포장을 선택해 주세요.",
+            )
+        if method == "CASH":
+            return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                session, "죄송해요, 카드 결제만 가능합니다.",
+            )
+
+        # 이미 결제방법 화면(PAYMENT) → 상태 그대로 결제창으로
+        if session.fsm_state == FSMState.PAYMENT:
+            response = VoicePipeline._build_guidance_pipeline_voicePipeline(
+                session, "결제를 진행할게요.",
+            )
+            response.response_type = ResponseType.SHOW_PAY
+            return response
+
+        # 주문 중(ORDERING) → 결제 시작 후 결제창으로
+        #   (빈 카트 EMPTY_CART / 작성 중 주문 ORDER_ITEM_EXISTS 는
+        #    START_PAYMENT 검증이 에러 응답으로 안내)
+        response = await EventExecutor.execute_ruleEngine_eventExecutor(
+            db=db,
+            session=session,
+            events=[FSMEvent(type=Event.START_PAYMENT)],
+            message="결제를 진행할게요.",
+        )
+        if response.success:
+            response.response_type = ResponseType.SHOW_PAY
+        return response
 
     # ------------------------------------------------------------------
     # 화면 이동 응답 : 전체 메뉴 화면 복귀 (상태 변경 없음)
