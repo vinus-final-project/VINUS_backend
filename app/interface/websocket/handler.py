@@ -105,6 +105,10 @@ async def handle_websocket_handler(
                         print(f"[WS] 파이프라인 오류 (session={sid}): {exc}")
                         continue
 
+                    # 환각 필터로 폐기된 발화 — 응답 없이 다음 발화 대기
+                    if result is None:
+                        continue
+
                     # ④ 첫 발화로 세션이 생성된 경우 — 연결 키 재바인딩
                     if result.session_id and result.session_id != key:
                         manager.bind_websocket_manager(key, result.session_id)

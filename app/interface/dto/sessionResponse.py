@@ -16,6 +16,8 @@ class ResponseType(str, Enum):
     PAYMENT_SUCCESS = "PAYMENT_SUCCESS"
     PAYMENT_CANCEL = "PAYMENT_CANCEL"
     SESSION_END = "SESSION_END"
+    SHOW_CART = "SHOW_CART"    # 화면 이동: 장바구니 ("장바구니 보여줘")
+    SHOW_MENU = "SHOW_MENU"    # 화면 이동: 전체 메뉴 ("돌아가기" / "메뉴 더 볼게")
 
 
 class SessionResponse(BaseModel):
@@ -32,3 +34,4 @@ class SessionResponse(BaseModel):
     recommendation_list: list[int] = Field(default_factory=list)   # 추천 메뉴
     error_code: Optional[str] = None                               # 오류 코드
     session_end: bool = False                                       # 세션 종료 여부
+    category: Optional[str] = None                                  # 카테고리 전환 힌트 (SHOW_MENU + c_name, 음성 "커피 메뉴 보여줘")

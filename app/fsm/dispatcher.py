@@ -142,7 +142,7 @@ class Dispatcher:
                 )
             case Event.ACCEPT_RECOMMENDATION:
                 await RecommendationController.accept_recommendation_controllers_recommendationController(
-                    db=db, session=session,
+                    db=db, session=session, index=params.get("index", 1),
                 )
 
             # ---------- 메뉴 정보 ----------
