@@ -158,6 +158,13 @@ class RuleParser:
                 if kw in text:
                     return "NAVIGATE", {"target": "MENU", "category": c_name}
 
+        # 4-1) 페이지 넘김: "다음 페이지/넘겨" — 방향 힌트만 전달
+        if not menu_ids:
+            if any(k in text for k in rules.PAGE_NEXT_KEYWORDS):
+                return "NAVIGATE", {"target": "MENU", "page": "NEXT"}
+            if any(k in text for k in rules.PAGE_PREV_KEYWORDS):
+                return "NAVIGATE", {"target": "MENU", "page": "PREV"}
+
         # 5) 화면 이동: 전체 메뉴(주문) 화면 복귀 — "돌아가/뒤로/메뉴 더"
         #    (상태 변경 없음 — voicePipeline 이 SHOW_MENU 응답으로 처리)
         if not menu_ids and any(k in text for k in rules.NAVIGATE_MENU_KEYWORDS):

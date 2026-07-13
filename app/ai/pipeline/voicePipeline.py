@@ -118,7 +118,9 @@ class VoicePipeline:
                         events=[FSMEvent(type=Event.CANCEL_ORDER_ITEM)],
                     )
                 return VoicePipeline._build_navigate_pipeline_voicePipeline(
-                    session, parse_result.entities.get("category"),
+                    session,
+                    parse_result.entities.get("category"),
+                    parse_result.entities.get("page"),
                 )
 
             # 합계 질문 ("총 얼마야/합계") — 상태 변경 없이 총액 안내
@@ -218,20 +220,28 @@ class VoicePipeline:
     def _build_navigate_pipeline_voicePipeline(
         session: Optional[Session],
         category: Optional[str] = None,
+        page: Optional[str] = None,
     ) -> SessionResponse:
         if session is None:
             return VoicePipeline._build_guidance_pipeline_voicePipeline(
                 session, "먼저 매장 또는 포장을 선택해 주세요.",
             )
+        if page:
+            message = (
+                "다음 메뉴를 보여드릴게요." if page == "NEXT"
+                else "이전 메뉴를 보여드릴게요."
+            )
+        elif category:
+            message = f"{category} 메뉴를 보여드릴게요."
+        else:
+            message = "메뉴 화면으로 돌아갈게요."
         return SessionResponse(
             response_type=ResponseType.SHOW_MENU,
             session_id=session.session_id,
             success=True,
-            message=(
-                f"{category} 메뉴를 보여드릴게요."
-                if category else "메뉴 화면으로 돌아갈게요."
-            ),
+            message=message,
             category=category,
+            page_move=page,
             fsm_state=session.fsm_state,
             order_type=session.order_type,
             order_item=session.order_item,
