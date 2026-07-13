@@ -72,11 +72,16 @@ class RuleParser:
         #   누적옵션(샷/시럽/휘핑): "휘핑 빼줘"는 카트 조작이 아니라 옵션 감소
         #   단일옵션(아이스/핫/라지 등): 메뉴와 함께 오면 카트 항목 특정 필터
         #     ("핫 아메리카노 빼줘" = 카트의 핫 아메리카노 제거)
+        #   ⚠ 반드시 메뉴명 스팬을 지운 텍스트로 검사 —
+        #     "카라멜 와플"/"바닐라라떼" 등 메뉴 이름 속 옵션 단어 오인 방지
+        text_wo_menu = RuleParser._blank_spans(
+            text, [(s_, e_) for (s_, e_, _) in menu_spans],
+        )
         has_optional_word = any(
-            k in text for k in rules.OPTIONAL_OPTION_KEYWORDS
+            k in text_wo_menu for k in rules.OPTIONAL_OPTION_KEYWORDS
         )
         has_required_word = any(
-            k in text for k in rules.REQUIRED_OPTION_KEYWORDS
+            k in text_wo_menu for k in rules.REQUIRED_OPTION_KEYWORDS
         )
         has_option_word = has_optional_word or has_required_word
 
