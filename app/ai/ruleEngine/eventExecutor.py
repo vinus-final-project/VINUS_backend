@@ -66,10 +66,25 @@ class EventExecutor:
         # 모든 이벤트 성공 (Event 없음도 여기로) → 정상 응답
         response = EventExecutor._build_success_ruleEngine_eventExecutor(session)
 
-        # 결제 취소가 처리된 턴이면 응답 종류를 PAYMENT_CANCEL 로 표기
-        #   (프론트 SessionRouter 가 /cart 복귀 라우팅에 사용 — 음성 취소 대응)
+        # 특정 이벤트가 처리된 턴은 응답 종류를 화면 이동 힌트로 표기
+        #   (프론트 fsmRoute 가 라우팅에 사용)
         if any(e.type == Event.PAYMENT_CANCEL for e in events):
+            # 결제 취소 → /cart 복귀 (음성 취소 대응)
             response.response_type = ResponseType.PAYMENT_CANCEL
+        elif any(
+            e.type in (
+                Event.SHOW_CART,
+                Event.REMOVE_CART_ITEM,
+                Event.CLEAR_CART,
+                Event.INCREASE_CART_ITEM,
+                Event.DECREASE_CART_ITEM,
+            )
+            for e in events
+        ):
+            # 장바구니 조회/조작 → /cart 유지
+            #   ("담아줘"와 상태가 같아 이벤트 종류로 구분 — 카트 조작 후
+            #    음성 라우팅이 /order 로 튕기지 않도록)
+            response.response_type = ResponseType.SHOW_CART
 
         await EventExecutor._touch_and_log_ruleEngine_eventExecutor(
             session, response.message,

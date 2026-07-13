@@ -27,6 +27,11 @@ class RuleParser:
         if not text:
             raise rules.ParseFailedError(rules.MSG_PARSE_FAILED, reason="EMPTY_TEXT")
 
+        # 발화 별칭 정규화 ("투샷" → "샷 2개" 등)
+        for alias, standard in rules.SPEECH_ALIASES.items():
+            if alias in text:
+                text = text.replace(alias, standard)
+
         # 1) 메뉴 감지 — 다중 메뉴 차단
         menu_spans = RuleParser._find_menus(text)
         menu_ids = [mid for (_, _, mid) in menu_spans]
@@ -105,7 +110,44 @@ class RuleParser:
                 e: Dict[str, Any] = {"action": cart_action}
                 if menu_ids and cart_action in ("REMOVE", "INCREASE", "DECREASE"):
                     e["menu"] = menu_ids[0]
+                # 개수 추출 ("두 개 빼줘" → 2) — 메뉴명 스팬은 제외하고 탐색
+                if cart_action in ("REMOVE", "INCREASE", "DECREASE"):
+                    cart_work = RuleParser._blank_spans(
+                        text, [(s_, e_) for (s_, e_, _) in menu_spans],
+                    )
+                    count = RuleParser._extract_quantity(cart_work)
+                    if count is not None:
+                        # 개수 지정 + "빼줘" = 항목 삭제가 아니라 수량 감소
+                        if cart_action == "REMOVE":
+                            e["action"] = "DECREASE"
+                        e["count"] = count
                 return "CART", e
+
+        # 4) 카테고리 전환: "커피 메뉴 보여줘" — NAVIGATE 보다 먼저 검사
+        #    ("메뉴 보여" 키워드에 선점당하지 않도록)
+        #    ⚠ 추천 발화("커피 추천해줘")는 하이재킹하지 않고 RECOMMEND 로 넘김
+        if not menu_ids and not any(
+            k in text for k in rules.RECOMMEND_REQUEST_KEYWORDS
+        ):
+            for kw, c_name in rules.CATEGORY_KEYWORDS.items():
+                if kw in text:
+                    return "NAVIGATE", {"target": "MENU", "category": c_name}
+
+        # 5) 화면 이동: 전체 메뉴(주문) 화면 복귀 — "돌아가/뒤로/메뉴 더"
+        #    (상태 변경 없음 — voicePipeline 이 SHOW_MENU 응답으로 처리)
+        if not menu_ids and any(k in text for k in rules.NAVIGATE_MENU_KEYWORDS):
+            return "NAVIGATE", {"target": "MENU"}
+
+        # 5) 합계 질문: "총 얼마야/합계/다 해서" → 주문 총액 안내
+        #    (voicePipeline 이 total_price 안내 문구로 처리)
+        if not menu_ids and any(k in text for k in rules.TOTAL_PRICE_KEYWORDS):
+            return "INFO", {"type": "TOTAL"}
+
+        # 6) 추천 수락(서수): "두 번째 걸로 주세요"
+        if not menu_ids:
+            for word, ordinal in rules.ORDINAL_KEYWORDS.items():
+                if word in text:
+                    return "RECOMMEND", {"action": "ACCEPT", "index": ordinal}
 
         if any(k in text for k in rules.RECOMMEND_ACCEPT_KEYWORDS):
             return "RECOMMEND", {"action": "ACCEPT"}
@@ -146,31 +188,62 @@ class RuleParser:
 
         raise rules.ParseFailedError(rules.MSG_PARSE_FAILED, reason="NO_RULE_MATCHED")
 
-    # 필수 옵션(단일, 교체) → 값 리스트
+    # 단일선택 옵션(교체) → 값 리스트
+    #   긴 키워드부터 매칭 + 매칭 스팬 소비
+    #   ("얼음 적게"→적게 가 잡히면 "얼음"→ICE 는 더 이상 매칭 안 됨,
+    #    "덜 달게"→50% 가 잡히면 "달게"→100% 차단)
     @staticmethod
     def _extract_required(work: str) -> List[str]:
         out: List[str] = []
-        for kw, val in rules.REQUIRED_OPTION_KEYWORDS.items():
-            if kw in work and val not in out:
+        for kw in sorted(rules.REQUIRED_OPTION_KEYWORDS, key=len, reverse=True):
+            idx = work.find(kw)
+            if idx == -1:
+                continue
+            val = rules.REQUIRED_OPTION_KEYWORDS[kw]
+            if val not in out:
                 out.append(val)
+            # 매칭 스팬 소비 (겹치는 짧은 키워드 재매칭 방지)
+            work = work[:idx] + " " * len(kw) + work[idx + len(kw):]
         return out
 
     # 선택 옵션(누적 +/-) → [{value, count, action}], 처리한 스팬은 blank
+    #   window: 키워드 뒤 최대 12자 — 단, 다음 옵션 키워드가 나오면 그 앞까지만
+    #   ("샷 추가 2개 빼줘"의 '빼'까지 포착하면서 "샷 빼고 휘핑 추가"의
+    #    휘핑을 잡아먹지 않도록)
     @staticmethod
     def _extract_optional(work: str) -> Tuple[List[Dict[str, Any]], str]:
+        WINDOW = 12
         out: List[Dict[str, Any]] = []
         seen = set()
         for kw, val in rules.OPTIONAL_OPTION_KEYWORDS.items():
             idx = work.find(kw)
             if idx == -1 or val in seen:
                 continue
-            window = work[idx: idx + 8]                 # 키워드 뒤 짧은 구간
-            action = ("REMOVE" if any(r in window for r in rules.OPTION_REMOVE_KEYWORDS)
-                      else "ADD")
+
+            # window 끝 = idx+12 또는 다음 옵션 키워드 시작 중 빠른 쪽
+            #   (자기 value 의 구성어는 제외 — "바닐라 시럽"의 "시럽" 등)
+            cut = WINDOW
+            for other_kw in rules.OPTIONAL_OPTION_KEYWORDS:
+                if other_kw == kw or other_kw in val:
+                    continue
+                j = work.find(other_kw, idx + len(kw), idx + WINDOW)
+                if j != -1:
+                    cut = min(cut, j - idx)
+            window = work[idx: idx + cut]
+
+            is_remove = any(r in window for r in rules.OPTION_REMOVE_KEYWORDS)
+            if is_remove and any(
+                a in window for a in rules.OPTION_REMOVE_ALL_KEYWORDS
+            ):
+                action = "REMOVE_ALL"   # "샷 전부 빼줘" — 선택된 개수만큼 제거
+            elif is_remove:
+                action = "REMOVE"
+            else:
+                action = "ADD"
             count = RuleParser._number_in(window) or 1
             out.append({"value": val, "count": count, "action": action})
             seen.add(val)
-            work = work[:idx] + " " * (idx + 8 - idx) + work[idx + 8:]  # 스팬 blank
+            work = work[:idx] + " " * cut + work[idx + cut:]  # 스팬 blank
         return out, work
 
     # 메뉴 수량: 숫자+단위 → 관형형 수사+단위 → 완전형 수사 순

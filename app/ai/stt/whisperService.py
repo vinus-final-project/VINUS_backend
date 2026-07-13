@@ -1,10 +1,14 @@
 # app/ai/stt/whisperService.py
 import asyncio
 import os
+import re
+from collections import Counter
 
 import numpy as np
 import torch
 from faster_whisper import WhisperModel
+
+from app.ai.ruleEngine import rules  # 메뉴 사전 (initial_prompt 자동 생성용)
 
 
 class WhisperService:
@@ -22,21 +26,48 @@ class WhisperService:
             )
     compute_type = "float16" if device == "cuda" else "int8"
     language = "ko"
-    # 메뉴 인식 정확도 향상용 힌트 (seed 실제 메뉴 기준)
+    # 메뉴 인식 정확도 향상용 힌트 — menus.csv(메뉴 사전) 기반 자동 생성
+    #   메뉴가 바뀌면 csv 만 갱신하면 프롬프트도 따라온다.
+    #   ("곡물라떼→옥몰라테" 같은 오인식을 인식 단계에서 줄이는 목적)
     initial_prompt = (
-        "카페 음료 주문입니다. "
-        "아메리카노, 에스프레소, 카페라떼, 카푸치노, 바닐라라떼, 헤이즐넛라떼, "
-        "카라멜마끼아또, 카페모카, 연유라떼, 흑당카페라떼, 돌체라떼, 아인슈페너, "
-        "달고나라떼, 꿀아메리카노, 더치라떼, 디카페인, "
-        "녹차라떼, 초코라떼, 딸기 스무디, 복숭아 아이스티, 요거트 스무디, "
-        "아이스, 핫, 따뜻하게, 따숩게, 시원하게, 차갑게, 뜨겁게, "
-        "레귤러, 라지, 샷 추가, 시럽 추가, 휘핑 추가, 휘핑 빼주세요."
+        "카페 키오스크 주문입니다. 메뉴: "
+        + ", ".join(rules.MENU_DICTIONARY.keys())
+        + ". 옵션: 아이스, 핫, 따뜻하게, 시원하게, 레귤러, 라지, 샷 추가, "
+        "바닐라 시럽, 헤이즐넛 시럽, 카라멜 시럽, 휘핑 추가, 펄 추가, "
+        "얼음 적게, 얼음 많이, 당도 50, 당도 100, 주세요, 빼주세요."
     )
 
-    # 모델 로드 (클래스 정의 시 1회 — 싱글톤)
-    model = WhisperModel(model_size, device=device, compute_type=compute_type)
+    # ===== 할루시네이션 필터 =====
+    # 세그먼트 품질 임계값 (Whisper 공식 휴리스틱 기반 — 실발화 로그 보고 조정)
+    NO_SPEECH_PROB_MAX = 0.6    # 무음일 확률이 이보다 높으면 폐기
+    AVG_LOGPROB_MIN = -1.0      # 인식 확신도가 이보다 낮으면 폐기
+    COMPRESSION_RATIO_MAX = 2.4 # 반복(루프 환각) 지표가 이보다 높으면 폐기
 
-    print(f"[STT] WhisperModel 로드 완료 — device={device}, compute_type={compute_type}")
+    # 무음/잡음에서 튀어나오는 대표 환각 문구 (발화 전체가 일치할 때만 폐기)
+    HALLUCINATION_BLACKLIST = (
+        "감사합니다", "고맙습니다", "감사합니다 감사합니다",
+        "시청해주셔서 감사합니다", "시청해 주셔서 감사합니다",
+        "구독과 좋아요", "구독 부탁드립니다", "좋아요와 구독",
+        "다음 영상에서 만나요", "다음 시간에 만나요",
+        "자막 제공", "한글자막", "수고하셨습니다", "아멘",
+    )
+
+    # 반복 감지: 동일 토큰 비율이 이보다 크면 루프 환각으로 판정
+    REPEAT_TOKEN_RATIO_MAX = 0.5
+    REPEAT_MIN_TOKENS = 6       # 짧은 발화는 반복 판정 제외
+
+    # 모델 (지연 로딩 싱글톤 — uvicorn --reload 시 reloader 프로세스의
+    #  중복 로드 방지. 실제 서버 프로세스에서 lifespan 웜업으로 1회 로드)
+    model = None
+
+    @classmethod
+    def get_model_stt_whisper(cls) -> WhisperModel:
+        if cls.model is None:
+            cls.model = WhisperModel(
+                cls.model_size, device=cls.device, compute_type=cls.compute_type,
+            )
+            print(f"[STT] WhisperModel 로드 완료 — device={cls.device}, compute_type={cls.compute_type}")
+        return cls.model
 
     # ===== 함수 정의 =====
     # PCM int16 bytes → float32 numpy 변환
@@ -48,12 +79,39 @@ class WhisperService:
         audio_float32 = np.clip(audio_float32, -1.0, 1.0)
         return audio_float32
 
+    # ------------------------------------------------------------------
+    # 할루시네이션 판정 도우미
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _normalize_for_blacklist_stt_whisper(text: str) -> str:
+        """블랙리스트 비교용 정규화 — 문장부호/공백 제거."""
+        return re.sub(r"[\s.,!?~…'\"]+", "", text)
+
+    @staticmethod
+    def _is_hallucination_stt_whisper(text: str) -> bool:
+        """최종 텍스트 단위 환각 판정 (블랙리스트 전체 일치 / 토큰 반복)."""
+        # 1) 블랙리스트 — 발화 "전체"가 환각 문구와 일치할 때만
+        #    ("네 감사합니다 결제할게요" 같은 정상 발화는 통과)
+        normalized = WhisperService._normalize_for_blacklist_stt_whisper(text)
+        for phrase in WhisperService.HALLUCINATION_BLACKLIST:
+            if normalized == WhisperService._normalize_for_blacklist_stt_whisper(phrase):
+                return True
+
+        # 2) 토큰 반복 — 같은 단어가 과반이면 루프 환각
+        tokens = text.split()
+        if len(tokens) >= WhisperService.REPEAT_MIN_TOKENS:
+            most_common = Counter(tokens).most_common(1)[0][1]
+            if most_common / len(tokens) > WhisperService.REPEAT_TOKEN_RATIO_MAX:
+                return True
+
+        return False
+
     # 실제 Whisper 추론 (동기) — to_thread로 감싸서 호출됨
     @staticmethod
     def run_stt_whisper(pcm_bytes: bytes) -> str:
         audio_data = WhisperService.convert_stt_whisper(pcm_bytes)
 
-        segments, _info = WhisperService.model.transcribe(
+        segments, _info = WhisperService.get_model_stt_whisper().transcribe(
             audio_data,
             language=WhisperService.language,
             beam_size=1,                        # 키오스크: 속도 우선 (turbo는 1로도 충분)
@@ -63,7 +121,28 @@ class WhisperService:
             initial_prompt=WhisperService.initial_prompt,
         )
 
-        return "".join(seg.text for seg in segments).strip()
+        # 세그먼트 품질 필터 — 무음 확률/확신도/반복 지표로 환각 세그먼트 폐기
+        pieces = []
+        for seg in segments:
+            if seg.no_speech_prob > WhisperService.NO_SPEECH_PROB_MAX:
+                print(f"[STT] 세그먼트 폐기(no_speech {seg.no_speech_prob:.2f}): {seg.text}")
+                continue
+            if seg.avg_logprob < WhisperService.AVG_LOGPROB_MIN:
+                print(f"[STT] 세그먼트 폐기(logprob {seg.avg_logprob:.2f}): {seg.text}")
+                continue
+            if seg.compression_ratio > WhisperService.COMPRESSION_RATIO_MAX:
+                print(f"[STT] 세그먼트 폐기(반복 {seg.compression_ratio:.2f}): {seg.text}")
+                continue
+            pieces.append(seg.text)
+
+        text = "".join(pieces).strip()
+
+        # 최종 텍스트 환각 판정 (블랙리스트 / 토큰 반복)
+        if text and WhisperService._is_hallucination_stt_whisper(text):
+            print(f"[STT] 환각 판정 폐기: {text}")
+            return ""
+
+        return text
 
     # STT 진입점 — PCM Binary를 한국어 텍스트로 변환 (비동기)
     @staticmethod
