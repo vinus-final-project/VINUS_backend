@@ -71,8 +71,6 @@ webrtcvad-wheels==2.0.14
 websockets==14.1
 
 # GPU 사용 시 (NVIDIA, 선택): 위 torch 대신 CUDA 빌드 설치
-#   pip install torch --index-url https://download.pytorch.org/whl/cu128
-
 
 # pip uninstall torch -y
 # pip install torch --index-url https://download.pytorch.org/whl/cu128
