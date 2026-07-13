@@ -68,11 +68,17 @@ class RuleParser:
         text: str, menu_ids: List[int], menu_spans: List[Tuple[int, int, int]],
     ) -> Tuple[str, Dict[str, Any]]:
 
-        # 옵션 단어(샷/휘핑/아이스 등) 포함 여부 — 카트/취소 분기와 옵션 조작 구분용
-        #   ("휘핑 빼줘"/"샷 취소"는 카트 조작·세션 취소가 아니라 옵션 감소)
-        has_option_word = any(
+        # 옵션 단어 포함 여부 — 카트/취소 분기와 옵션 조작 구분용
+        #   누적옵션(샷/시럽/휘핑): "휘핑 빼줘"는 카트 조작이 아니라 옵션 감소
+        #   단일옵션(아이스/핫/라지 등): 메뉴와 함께 오면 카트 항목 특정 필터
+        #     ("핫 아메리카노 빼줘" = 카트의 핫 아메리카노 제거)
+        has_optional_word = any(
             k in text for k in rules.OPTIONAL_OPTION_KEYWORDS
-        ) or any(k in text for k in rules.REQUIRED_OPTION_KEYWORDS)
+        )
+        has_required_word = any(
+            k in text for k in rules.REQUIRED_OPTION_KEYWORDS
+        )
+        has_option_word = has_optional_word or has_required_word
 
         # 1) 명시적 전체 취소 ("처음부터", "전부 취소" 등) → 세션 취소
         if not menu_ids and any(k in text for k in rules.SESSION_CANCEL_KEYWORDS):
@@ -93,8 +99,10 @@ class RuleParser:
             return "PAYMENT", {"action": "START"}
 
         # 3) 카트 조작 — 메뉴 지정 허용 ("아메리카노 빼줘")
-        #    옵션 단어가 있으면 옵션 증감이므로 ORDER 경로로 넘긴다.
-        if not has_option_word:
+        #    누적옵션 단어(샷/시럽/휘핑)가 있으면 옵션 증감 → ORDER 경로.
+        #    단일옵션 단어(핫/아이스 등)는 메뉴와 함께 올 때만 진입 허용
+        #      ("핫 아메리카노 빼줘" — 옵션은 카트 항목 특정 필터로 사용)
+        if not has_optional_word and (not has_required_word or menu_ids):
             cart_action = None
             if any(k in text for k in rules.CART_CLEAR_KEYWORDS):
                 cart_action = "CLEAR"
@@ -121,6 +129,11 @@ class RuleParser:
                         if cart_action == "REMOVE":
                             e["action"] = "DECREASE"
                         e["count"] = count
+                    # 옵션 필터 ("핫 아메리카노 빼줘" → HOT 항목 특정)
+                    if menu_ids and has_required_word:
+                        option_filter = RuleParser._extract_required(cart_work)
+                        if option_filter:
+                            e["option_filter"] = option_filter
                 return "CART", e
 
         # 4) 카테고리 전환: "커피 메뉴 보여줘" — NAVIGATE 보다 먼저 검사
