@@ -43,7 +43,8 @@ SPEECH_ALIASES = {
     "샷2가": "샷 추가", "샷 2가": "샷 추가", "샤추가": "샷 추가",
 }
 CART_DECREASE_KEYWORDS = ("하나 빼", "감소", "줄여")
-CART_REMOVE_KEYWORDS = ("삭제", "빼줘", "제거", "취소")   # "아메리카노 취소" = 카트에서 제거
+CART_REMOVE_KEYWORDS = ("삭제", "빼줘", "빼 줘", "빼죠", "빼 죠", "빼주",
+                        "제거", "취소")   # "아메리카노 취소" = 카트에서 제거, 빼주=빼주세요 커버
 CART_SHOW_KEYWORDS = ("장바구니", "담은", "카트")
 # 화면 이동: 전체 메뉴(주문) 화면 복귀 — FSM 이벤트 없음 (voicePipeline 이 SHOW_MENU 응답)
 NAVIGATE_MENU_KEYWORDS = ("돌아가", "뒤로", "메뉴 더", "다른 메뉴", "메뉴 보여",
