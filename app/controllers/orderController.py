@@ -21,6 +21,16 @@ class OrderController:
         return None
 
     # ------------------------------------------------------------------
+    # 내부 헬퍼 : 그룹 안에서 option_id 의 표시 이름 조회 (에코백용)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _find_option_name(group: dict, option_id: int) -> str | None:
+        for option in group["options"]:
+            if option["op_id"] == option_id:
+                return option.get("op_name")
+        return None
+
+    # ------------------------------------------------------------------
     # create_order_item : 현재 주문(OrderItem) 생성
     #   - 상태는 IN_PROGRESS 로 시작 (필수/선택 구분 없이 옵션 자유선택)
     #   - current_menu 스냅샷 저장
@@ -53,6 +63,9 @@ class OrderController:
             status=OrderItemStatus.IN_PROGRESS,
         )
         session.current_menu = menu  # 메뉴 스냅샷 저장
+
+        # 에코백 — 터치/음성 공용 (확인 + 다음 행동 안내)
+        session.message = f"{menu['m_name']} 선택했어요. 옵션을 골라주세요."
 
     # ------------------------------------------------------------------
     # select_option : 옵션 추가 (+1, 누적)
@@ -93,6 +106,15 @@ class OrderController:
                 raise ValueError("OPTION_LIMIT_EXCEEDED")
             selected.append(option_id)  # 중복 허용 = 누적
 
+        # 에코백 — 단일선택은 "선택", 누적은 "추가" (터치/음성 공용)
+        op_name = OrderController._find_option_name(group, option_id)
+        if op_name:
+            session.message = (
+                f"{op_name} 선택했어요."
+                if group["og_max"] == 1
+                else f"{op_name} 추가했어요."
+            )
+
     # ------------------------------------------------------------------
     # deselect_option : 옵션 감소 (-1)
     #   - 해당 옵션 한 개만 제거 (없으면 무시)
@@ -124,6 +146,10 @@ class OrderController:
         # 한 개만 제거 (없으면 무시)
         if option_id in selected:
             selected.remove(option_id)
+            # 에코백 — 실제로 빠졌을 때만 (터치/음성 공용)
+            op_name = OrderController._find_option_name(group, option_id)
+            if op_name:
+                session.message = f"{op_name} 뺐어요."
 
     # ------------------------------------------------------------------
     # set_quantity : 주문 수량 설정 (언제든 변경 가능)
@@ -144,6 +170,9 @@ class OrderController:
 
         # 수량은 값만 갱신
         session.order_item.quantity = quantity
+
+        # 에코백 (터치/음성 공용)
+        session.message = f"{quantity}개로 변경했어요."
 
     # ------------------------------------------------------------------
     # complete_order_item : 작성 완료 (개수 기준 필수/min/max 검증)
@@ -193,6 +222,17 @@ class OrderController:
         if session.order_item is None:
             raise ValueError("ORDER_ITEM_NOT_FOUND")
 
+        # 에코백용 메뉴 이름 — 스냅샷 제거 전에 확보
+        menu = session.current_menu
+        menu_name = menu.get("m_name") if isinstance(menu, dict) else None
+
         # OrderItem + 메뉴 스냅샷 제거
         session.order_item = None
         session.current_menu = None
+
+        # 에코백 (터치/음성 공용)
+        session.message = (
+            f"{menu_name} 주문을 취소했어요."
+            if menu_name
+            else "선택하던 메뉴를 취소했어요."
+        )
