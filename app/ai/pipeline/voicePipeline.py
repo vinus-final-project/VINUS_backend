@@ -108,14 +108,13 @@ class VoicePipeline:
                         db, session, parse_result.entities.get("method"),
                     )
 
-                # 작성 중 주문이 있으면 취소하고 이동
-                #   (터치 orderDetail '취소' 버튼과 동일 — "뒤로 갈래" 후
-                #    다른 메뉴 선택 시 ORDER_ITEM_EXISTS 로 막히는 문제 방지)
+                # 작성 중 주문이 있으면 이동 차단 — 취소/주문 완료로만 이탈
+                #   (기존 자동 취소 정책 폐기: 오인식 한 번에 고르던 옵션이
+                #    날아가는 사고 방지. RuleEngine 카트/메뉴 차단과 동일 문구)
                 if session is not None and session.order_item is not None:
-                    await EventExecutor.execute_ruleEngine_eventExecutor(
-                        db=db,
-                        session=session,
-                        events=[FSMEvent(type=Event.CANCEL_ORDER_ITEM)],
+                    return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                        session,
+                        RuleEngine.composing_block_msg_ruleEngine_ruleEngine(session),
                     )
                 return VoicePipeline._build_navigate_pipeline_voicePipeline(
                     session,
@@ -144,8 +143,18 @@ class VoicePipeline:
             events = await RuleEngine.build_events_ruleEngine_ruleEngine(
                 db=db, session=session, parse_result=parse_result,
             )
-        except rules.MultipleMenuError as exc:
-            # 정책 위반 (한 번에 한 메뉴) — LLM 폴백 대상 아님, 바로 안내
+
+            # 음성 에코 요약 (ORDER) — "아메리카노 세잔"처럼 한 발화가
+            # 이벤트 여러 개로 번역되면 컨트롤러 에코가 마지막 것만 남아
+            # 발화 전체 요약으로 덮는다 (None 이면 컨트롤러 에코 유지)
+            echo = None
+            if parse_result.intent == "ORDER":
+                echo = await RuleEngine.build_order_echo_ruleEngine_ruleEngine(
+                    db=db, session=session, e=parse_result.entities,
+                )
+        except (rules.MultipleMenuError, rules.PolicyBlockedError) as exc:
+            # 정책 위반 (한 번에 한 메뉴 / 작성 중 이탈 차단)
+            #   — LLM 폴백 대상 아님, 바로 안내
             return VoicePipeline._build_guidance_pipeline_voicePipeline(
                 session, exc.message,
             )
@@ -164,7 +173,7 @@ class VoicePipeline:
 
         # EventExecutor : FIFO 실행 → SessionResponse (실패 시 내부에서 에러 응답 조립)
         return await EventExecutor.execute_ruleEngine_eventExecutor(
-            db=db, session=session, events=events,
+            db=db, session=session, events=events, message=echo,
         )
 
     # ------------------------------------------------------------------

@@ -149,3 +149,9 @@ class RuleParseError(Exception):
 
 class MultipleMenuError(RuleParseError): ...
 class ParseFailedError(RuleParseError): ...
+
+
+class PolicyBlockedError(RuleParseError):
+    """정책 차단 — 발화는 이해했지만 현재 상태에서 허용하지 않는 동작.
+    (예: 옵션 선택 중 화면 이탈) LLM 폴백 대상이 아니라 바로 안내 응답."""
+    ...
