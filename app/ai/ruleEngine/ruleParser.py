@@ -96,6 +96,14 @@ class RuleParser:
         ):
             return "CANCEL", {}
 
+        # 2.5) 작성 중 주문 한정 취소 ("다른거 먹을래") → scope 명시
+        #      제네릭 취소와 달리 세션 취소로 번지지 않음 —
+        #      order_item 유무 판단은 RuleEngine 담당
+        if not menu_ids and not has_option_word and any(
+            k in text for k in rules.ORDER_ITEM_CANCEL_KEYWORDS
+        ):
+            return "CANCEL", {"scope": "ORDER_ITEM"}
+
         for kw, ot in rules.ORDER_TYPE_KEYWORDS.items():
             if kw in text:
                 return "SESSION", {"order_type": ot}

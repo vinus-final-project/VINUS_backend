@@ -158,7 +158,7 @@ class RuleEngine:
         if intent == "SESSION":
             return RuleEngine._session_events_ruleEngine_ruleEngine(entities)
         if intent == "CANCEL":
-            return RuleEngine._cancel_events_ruleEngine_ruleEngine(session)
+            return RuleEngine._cancel_events_ruleEngine_ruleEngine(session, entities)
         if intent == "PAYMENT":
             return [FSMEvent(type=Event.START_PAYMENT)]
         if intent == "RECOMMEND":
@@ -189,7 +189,17 @@ class RuleEngine:
     @staticmethod
     def _cancel_events_ruleEngine_ruleEngine(
         session: Optional[Session],
+        e: Optional[Dict[str, Any]] = None,
     ) -> List[FSMEvent]:
+        # 작성 중 주문 한정 취소 ("다른거 먹을래") — 세션 취소로 번지지 않음
+        if (e or {}).get("scope") == "ORDER_ITEM":
+            if session is not None and session.order_item is not None:
+                return [FSMEvent(type=Event.CANCEL_ORDER_ITEM)]
+            raise rules.PolicyBlockedError(
+                "지금 선택 중인 메뉴가 없어요. 원하시는 메뉴를 말씀해주세요.",
+                reason="NO_COMPOSING_ITEM",
+            )
+
         if session is None:
             raise rules.ParseFailedError(
                 "취소할 주문이 없어요.", reason="NO_SESSION_FOR_CANCEL")
