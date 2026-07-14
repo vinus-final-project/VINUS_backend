@@ -4,9 +4,7 @@ from pydantic import BaseModel
 
 from app.db.database import get_db
 from app.db.scheme.payment import PaymentConfirmRequest, PaymentConfirmResponse
-from app.db.crud.order import Order as OrderCrud
 from app.services.payment import Payment
-from app.services.receipt import Receipt
 from app.memory.session.sessionCrud import SessionCrud
 from app.fsm.event import Event, FSMEvent
 from app.ai.ruleEngine.eventExecutor import EventExecutor
@@ -19,16 +17,6 @@ router = APIRouter(prefix="/payments", tags=["Payments"])
 class PaymentRequest(BaseModel):
     session_id: str
  
- 
-# 영수증 재출력 요청/응답
-class ReceiptReprintRequest(BaseModel):
-    od_id: int
- 
- 
-class ReceiptReprintResponse(BaseModel):
-    success: bool
-    od_id: int
-
 
 # 세션 조회 (없으면 404)
 async def _get_session_or_404(session_id: str):
@@ -80,27 +68,3 @@ async def cancel_payment_routers_payment(
     return await EventExecutor.execute_ruleEngine_eventExecutor(
         db=db, session=session, events=[event],
     )
-
- 
-# 영수증 재출력 — 자동 출력 실패/고객 재발급 요청 대비
-@router.post("/receipt", response_model=ReceiptReprintResponse, status_code=status.HTTP_200_OK)
-async def reprint_receipt_routers_payment(
-    body: ReceiptReprintRequest,
-    db: AsyncSession = Depends(get_db),
-) -> ReceiptReprintResponse:
-    order = await OrderCrud.get_paid_order_crud_order(db=db, od_id=body.od_id)
-    if order is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="주문을 찾을 수 없습니다.",
-        )
- 
-    receipt_data = Receipt.build_from_order_services_receipt(order)
-    ok = await Receipt.print_services_receipt(receipt_data)
-    if not ok:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="영수증 출력에 실패했습니다. 프린터 상태(전원/용지/연결)를 확인하세요.",
-        )
-    return ReceiptReprintResponse(success=True, od_id=body.od_id)
- 

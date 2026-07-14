@@ -2,8 +2,6 @@ from datetime import datetime
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-
 
 from app.db.models.orders import Orders, OdState
 from app.db.models.orderMenus import OrderMenus
@@ -90,26 +88,3 @@ class Order:
 
         await db.commit()
         return db_order.od_id
-    
-    # ------------------------------------------------------------------
-    # R - 영수증 출력용 주문 조회 (메뉴/옵션/세션 관계 즉시 로드)
-    #     결제 직후 자동 출력 + /payments/receipt 재출력 공용.
-    # ------------------------------------------------------------------
-    @staticmethod
-    async def get_paid_order_crud_order(
-        db: AsyncSession,
-        od_id: int,
-    ) -> Orders | None:
-        result = await db.execute(
-            select(Orders)
-            .options(
-                selectinload(Orders.session),
-                selectinload(Orders.order_menus).selectinload(OrderMenus.menu),
-                selectinload(Orders.order_menus)
-                .selectinload(OrderMenus.order_menu_options)
-                .selectinload(OrderMenuOptions.option),
-            )
-            .where(Orders.od_id == od_id)
-        )
-        return result.scalar_one_or_none()
- 
