@@ -73,6 +73,16 @@ class RuleEngine:
         return RuleEngine._menu_meta_cache.get(menu_id)
 
     # ------------------------------------------------------------------
+    # 캐시에서 수량 단위만 동기 조회 (컨트롤러 에코용, db 불필요)
+    #   주문 흐름상 create_order_item(캐시 웜업) 이후에만 수량/카트 에코가
+    #   나가므로 대부분 적중. 미적중 시 "개" 폴백.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def menu_unit_cached_ruleEngine_ruleEngine(menu_id: Optional[int]) -> str:
+        meta = (RuleEngine._menu_meta_cache or {}).get(menu_id)
+        return meta["unit"] if meta else "개"
+
+    # ------------------------------------------------------------------
     # 음성 ORDER 발화 에코 요약 (에코백 2단계)
     #   한 발화가 이벤트 여러 개로 번역되면("아메리카노 세잔" =
     #   SELECT_MENU + SET_QUANTITY) 컨트롤러 에코가 마지막 것만 남는

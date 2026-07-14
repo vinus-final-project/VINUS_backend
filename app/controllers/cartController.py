@@ -93,10 +93,15 @@ class CartController:
             cart_item_id=cart_item_id,
         )
 
-        # 에코백 (터치/음성 공용) — 증가 후 수량 포함
+        # 에코백 (터치/음성 공용) — 증가 후 수량 포함 (단위: 잔/개)
         ci = CartController._find_cart_item(session, cart_item_id)
         if ci:
-            session.message = f"{ci.menu_name} 하나 더 담았어요. {ci.quantity}개예요."
+            from app.ai.ruleEngine.ruleEngine import RuleEngine
+            unit = RuleEngine.menu_unit_cached_ruleEngine_ruleEngine(ci.menu_id)
+            josa = "이에요" if unit == "잔" else "예요"
+            session.message = (
+                f"{ci.menu_name} 하나 더 담았어요. {ci.quantity}{unit}{josa}."
+            )
 
     # 수량 감소 (-1, 0이면 삭제)
     @staticmethod
@@ -112,9 +117,14 @@ class CartController:
             cart_item_id=cart_item_id,
         )
 
-        # 에코백 (터치/음성 공용) — 남았으면 수량, 사라졌으면 뺐다고 안내
+        # 에코백 (터치/음성 공용) — 남았으면 수량(단위: 잔/개), 사라졌으면 뺐다고 안내
         after = CartController._find_cart_item(session, cart_item_id)
         if after:
-            session.message = f"{after.menu_name} 하나 뺐어요. {after.quantity}개예요."
+            from app.ai.ruleEngine.ruleEngine import RuleEngine
+            unit = RuleEngine.menu_unit_cached_ruleEngine_ruleEngine(after.menu_id)
+            josa = "이에요" if unit == "잔" else "예요"
+            session.message = (
+                f"{after.menu_name} 하나 뺐어요. {after.quantity}{unit}{josa}."
+            )
         elif before:
             session.message = f"{before.menu_name} 뺐어요."

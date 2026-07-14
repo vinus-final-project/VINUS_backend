@@ -1,6 +1,7 @@
 # app/ai/rapidfuzz/normalizer.py
 import csv
 import os
+import re
 from typing import List, Tuple
 
 from rapidfuzz import process, fuzz
@@ -16,6 +17,14 @@ class Normalizer:
     min_token_length = 2      # 너무 짧은 단일 토큰은 보정 제외
     max_ngram = 3             # 띄어쓰기 묶음 최대 단어 수
     ngram_tolerance = 5       # 묶음이 단독보다 이 점수 이내로 낮으면 묶음 우선
+
+    # 수량 토큰 판정 — 숫자와 동일하게 묶음 병합에서 제외할 한글 수사
+    #   ("메이플 크룽지 두 개" 의 "두" 가 메뉴명 3-gram 에 먹혀 사라지는
+    #    문제 방지. 완전일치 패턴이라 "세트"/"열대" 같은 일반 단어는 무관)
+    qty_token_re = re.compile(
+        r"^(?:\d+|하나|둘|셋|넷|다섯|여섯|일곱|여덟|아홉|열|한|두|세|네)"
+        r"(?:개|잔|번|장|명)?$"
+    )
 
     # 한글 유니코드 자모 테이블
     chosung_list = [
@@ -135,11 +144,14 @@ class Normalizer:
                 if window == 1 and len(candidate) < Normalizer.min_token_length:
                     continue
 
-                # 숫자(수량) 토큰은 묶음 병합에서 제외
-                #   ("바닐라 시럽 2개" 가 "바닐라 시럽" 으로 치환되며
-                #    수량이 사라지는 문제 방지 — 숫자는 그대로 통과시킨다)
+                # 수량 토큰(숫자/한글 수사)은 묶음 병합에서 제외
+                #   ("바닐라 시럽 2개" → "바닐라 시럽", "메이플 크룽지 두 개"
+                #    → "메이플 크룽지 개" 처럼 수량이 사라지는 문제 방지
+                #    — 수량 토큰은 그대로 통과시킨다)
                 if window > 1 and any(
-                    any(ch.isdigit() for ch in tok) for tok in phrase_tokens
+                    any(ch.isdigit() for ch in tok)
+                    or Normalizer.qty_token_re.match(tok)
+                    for tok in phrase_tokens
                 ):
                     continue
 
