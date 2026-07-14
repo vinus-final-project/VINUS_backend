@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
  
 from app.core.settings import settings
+from app.db.crud.order import Order as OrderCrud      # ← crud.order (crud.payment 아님)
 from app.db.models.orders import OdState
 from app.db.scheme.payment import PaymentConfirmResponse
 from app.memory.session.sessionCrud import SessionCrud
