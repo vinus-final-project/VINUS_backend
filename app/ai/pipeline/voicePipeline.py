@@ -234,7 +234,12 @@ class VoicePipeline:
         elif category:
             message = f"{category} 메뉴를 보여드릴게요."
         else:
-            message = "메뉴 화면으로 돌아갈게요."
+            # 확인 + 다음 행동 안내 컨벤션 (페이지 입장 안내 PageGuide 는
+            # message 있는 전이를 skip 하므로, 이동 message 가 안내까지 담당)
+            message = (
+                "메뉴 화면으로 돌아갈게요. "
+                "주문하실 메뉴를 말씀하시거나 화면에서 선택해주세요."
+            )
         return SessionResponse(
             response_type=ResponseType.SHOW_MENU,
             session_id=session.session_id,
