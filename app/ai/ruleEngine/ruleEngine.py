@@ -41,7 +41,7 @@ class RuleEngine:
         if intent == "PAYMENT":
             return [FSMEvent(type=Event.START_PAYMENT)]
         if intent == "RECOMMEND":
-            return RuleEngine._recommend_events_ruleEngine_ruleEngine(entities)
+            return RuleEngine._recommend_events_ruleEngine_ruleEngine(session, entities)
         if intent == "INFO":
             return RuleEngine._info_events_ruleEngine_ruleEngine(session, entities)
         if intent == "CART":
@@ -80,8 +80,21 @@ class RuleEngine:
 
     # ---------------- RECOMMEND ----------------
     @staticmethod
-    def _recommend_events_ruleEngine_ruleEngine(e: Dict[str, Any]) -> List[FSMEvent]:
+    def _recommend_events_ruleEngine_ruleEngine(
+        session: Optional[Session], e: Dict[str, Any],
+    ) -> List[FSMEvent]:
         if e.get("action") == "ACCEPT":
+            # "그걸로 주세요" 문맥 해석:
+            #   추천 목록이 없는데 주문 작성 중이면 = 선택 완료(담기) 의도
+            #   단, 서수 지정("3번째 걸로")은 명확한 추천 수락 의도이므로
+            #   담기로 바꾸지 않고 아래에서 목록 검증 에러 안내를 태운다
+            if (
+                e.get("index") is None
+                and (session is None or not session.recommendation_list)
+                and session is not None
+                and session.order_item is not None
+            ):
+                return [FSMEvent(type=Event.SKIP_OPTIONAL_OPTION)]
             # index: "두 번째 걸로" 서수 선택 (기본 1 = 첫 번째)
             return [FSMEvent(type=Event.ACCEPT_RECOMMENDATION,
                              parameters={"index": e.get("index", 1)})]
@@ -147,14 +160,27 @@ class RuleEngine:
             return [FSMEvent(type=Event.SET_QUANTITY,
                              parameters={"quantity": new_qty})]
 
-        # "아메리카노 하나 추가" 인데 그 메뉴가 카트에 없으면 신규 주문으로 해석
+        # "아메리카노 하나 추가" 인데 그 메뉴(+옵션 조합)가 카트에 없으면
+        # 신규 주문으로 해석
+        #   ("아이스 아메리카노 추가"인데 카트에 핫만 있으면 → 아이스 신규 주문)
         #   (다른 메뉴를 작성 중이었다면 폐기 후 시작 — 새 메뉴 발화 = 이전 포기 의도)
+        option_filter = e.get("option_filter")
         if (
             action == "INCREASE"
             and menu_id is not None
             and (
                 session is None
-                or not any(ci.menu_id == menu_id for ci in session.cart)
+                or not any(
+                    ci.menu_id == menu_id
+                    and (
+                        not option_filter
+                        or all(
+                            any(opt.op_name == v for opt in ci.options)
+                            for v in option_filter
+                        )
+                    )
+                    for ci in session.cart
+                )
             )
         ):
             events = []
@@ -181,7 +207,7 @@ class RuleEngine:
                              parameters={"quantity": new_qty})]
 
         cart_item_id = RuleEngine._resolve_cart_item_ruleEngine_ruleEngine(
-            session, menu_id,
+            session, menu_id, e.get("option_filter"),
         )
         event_map = {
             "REMOVE": Event.REMOVE_CART_ITEM,
@@ -211,17 +237,35 @@ class RuleEngine:
             for _ in range(count)
         ]
 
-    # cart_item_id 해석 : 메뉴 지정 → 해당 메뉴 항목(복수면 마지막 담은 것),
-    #                    미지정 → 카트에 1건이면 그것, 그 외 재질문
+    # cart_item_id 해석 우선순위:
+    #   ① 메뉴 + 옵션필터 ("핫 아메리카노 빼줘" → HOT 옵션이 담긴 항목)
+    #   ② 메뉴만 → 해당 메뉴 항목 (복수면 마지막 담은 것)
+    #   ③ 미지정 → 카트에 1건이면 그것, 그 외 재질문
     @staticmethod
     def _resolve_cart_item_ruleEngine_ruleEngine(
-        session: Optional[Session], menu_id: Optional[int],
+        session: Optional[Session],
+        menu_id: Optional[int],
+        option_filter: Optional[List[str]] = None,
     ) -> int:
         if session is None or not session.cart:
             raise rules.ParseFailedError(
                 "장바구니가 비어 있어요.", reason="EMPTY_CART")
         if menu_id is not None:
             matches = [ci for ci in session.cart if ci.menu_id == menu_id]
+            # 옵션필터 — 카트 스냅샷의 op_name 과 대조 (DB 조회 불필요)
+            if matches and option_filter:
+                filtered = [
+                    ci for ci in matches
+                    if all(
+                        any(opt.op_name == value for opt in ci.options)
+                        for value in option_filter
+                    )
+                ]
+                if not filtered:
+                    raise rules.ParseFailedError(
+                        "장바구니에 그 옵션의 메뉴가 없어요.",
+                        reason="CART_ITEM_NOT_FOUND")
+                matches = filtered
             if not matches:
                 raise rules.ParseFailedError(
                     "장바구니에 그 메뉴가 없어요.", reason="CART_ITEM_NOT_FOUND")

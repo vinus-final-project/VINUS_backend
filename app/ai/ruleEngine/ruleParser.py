@@ -68,11 +68,22 @@ class RuleParser:
         text: str, menu_ids: List[int], menu_spans: List[Tuple[int, int, int]],
     ) -> Tuple[str, Dict[str, Any]]:
 
-        # 옵션 단어(샷/휘핑/아이스 등) 포함 여부 — 카트/취소 분기와 옵션 조작 구분용
-        #   ("휘핑 빼줘"/"샷 취소"는 카트 조작·세션 취소가 아니라 옵션 감소)
-        has_option_word = any(
-            k in text for k in rules.OPTIONAL_OPTION_KEYWORDS
-        ) or any(k in text for k in rules.REQUIRED_OPTION_KEYWORDS)
+        # 옵션 단어 포함 여부 — 카트/취소 분기와 옵션 조작 구분용
+        #   누적옵션(샷/시럽/휘핑): "휘핑 빼줘"는 카트 조작이 아니라 옵션 감소
+        #   단일옵션(아이스/핫/라지 등): 메뉴와 함께 오면 카트 항목 특정 필터
+        #     ("핫 아메리카노 빼줘" = 카트의 핫 아메리카노 제거)
+        #   ⚠ 반드시 메뉴명 스팬을 지운 텍스트로 검사 —
+        #     "카라멜 와플"/"바닐라라떼" 등 메뉴 이름 속 옵션 단어 오인 방지
+        text_wo_menu = RuleParser._blank_spans(
+            text, [(s_, e_) for (s_, e_, _) in menu_spans],
+        )
+        has_optional_word = any(
+            k in text_wo_menu for k in rules.OPTIONAL_OPTION_KEYWORDS
+        )
+        has_required_word = any(
+            k in text_wo_menu for k in rules.REQUIRED_OPTION_KEYWORDS
+        )
+        has_option_word = has_optional_word or has_required_word
 
         # 1) 명시적 전체 취소 ("처음부터", "전부 취소" 등) → 세션 취소
         if not menu_ids and any(k in text for k in rules.SESSION_CANCEL_KEYWORDS):
@@ -89,12 +100,21 @@ class RuleParser:
             if kw in text:
                 return "SESSION", {"order_type": ot}
 
+        # 결제수단 발화 — "카드로 할게/카드로 결제" 는 결제창 진행,
+        #   "현금" 은 미지원 안내. PAYMENT_KEYWORDS("결제") 보다 먼저 검사.
+        if not menu_ids and any(k in text for k in rules.PAY_CARD_KEYWORDS):
+            return "NAVIGATE", {"target": "PAY", "method": "CARD"}
+        if not menu_ids and any(k in text for k in rules.PAY_CASH_KEYWORDS):
+            return "NAVIGATE", {"target": "PAY", "method": "CASH"}
+
         if any(k in text for k in rules.PAYMENT_KEYWORDS):
             return "PAYMENT", {"action": "START"}
 
         # 3) 카트 조작 — 메뉴 지정 허용 ("아메리카노 빼줘")
-        #    옵션 단어가 있으면 옵션 증감이므로 ORDER 경로로 넘긴다.
-        if not has_option_word:
+        #    누적옵션 단어(샷/시럽/휘핑)가 있으면 옵션 증감 → ORDER 경로.
+        #    단일옵션 단어(핫/아이스 등)는 메뉴와 함께 올 때만 진입 허용
+        #      ("핫 아메리카노 빼줘" — 옵션은 카트 항목 특정 필터로 사용)
+        if not has_optional_word and (not has_required_word or menu_ids):
             cart_action = None
             if any(k in text for k in rules.CART_CLEAR_KEYWORDS):
                 cart_action = "CLEAR"
@@ -121,6 +141,11 @@ class RuleParser:
                         if cart_action == "REMOVE":
                             e["action"] = "DECREASE"
                         e["count"] = count
+                    # 옵션 필터 ("핫 아메리카노 빼줘" → HOT 항목 특정)
+                    if menu_ids and has_required_word:
+                        option_filter = RuleParser._extract_required(cart_work)
+                        if option_filter:
+                            e["option_filter"] = option_filter
                 return "CART", e
 
         # 4) 카테고리 전환: "커피 메뉴 보여줘" — NAVIGATE 보다 먼저 검사
@@ -133,6 +158,16 @@ class RuleParser:
                 if kw in text:
                     return "NAVIGATE", {"target": "MENU", "category": c_name}
 
+        # 4-1) 페이지 넘김: "다음 페이지/넘겨" — 방향 힌트만 전달
+        #    PREV 를 먼저 검사 ("이전으로 넘겨줘"의 '넘겨'가 NEXT 로 오판되지 않게)
+        #    옵션 단어가 있으면 스킵 — STT 가 "시럽 넣어줘"를 "넘겨줘"로
+        #    받아써도 페이지 넘김이 아니라 옵션 추가로 처리되도록
+        if not menu_ids and not has_option_word:
+            if any(k in text for k in rules.PAGE_PREV_KEYWORDS):
+                return "NAVIGATE", {"target": "MENU", "page": "PREV"}
+            if any(k in text for k in rules.PAGE_NEXT_KEYWORDS):
+                return "NAVIGATE", {"target": "MENU", "page": "NEXT"}
+
         # 5) 화면 이동: 전체 메뉴(주문) 화면 복귀 — "돌아가/뒤로/메뉴 더"
         #    (상태 변경 없음 — voicePipeline 이 SHOW_MENU 응답으로 처리)
         if not menu_ids and any(k in text for k in rules.NAVIGATE_MENU_KEYWORDS):
@@ -144,7 +179,9 @@ class RuleParser:
             return "INFO", {"type": "TOTAL"}
 
         # 6) 추천 수락(서수): "두 번째 걸로 주세요"
-        if not menu_ids:
+        #    옵션 단어가 있으면 스킵 — "시럽 3번 (추가)"의 '3번'이
+        #    추천 서수로 오판되지 않도록 (옵션 반복 횟수로 처리)
+        if not menu_ids and not has_option_word:
             for word, ordinal in rules.ORDINAL_KEYWORDS.items():
                 if word in text:
                     return "RECOMMEND", {"action": "ACCEPT", "index": ordinal}
