@@ -142,7 +142,7 @@ app.add_middleware(
         "http://localhost:80",              
         "null",                             # 앱 보안 정책상 Origin 헤더가 'null' 문자열로 넘어오는 경우 대비
     ],
-    allow_origin_regex=r"https://.*",
+    # allow_origin_regex=r"https://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
