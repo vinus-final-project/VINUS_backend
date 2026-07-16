@@ -126,27 +126,23 @@ app.add_middleware(SuperCORSMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://localhost",
-        "https://localhost/",
-        "http://localhost",
-        "http://localhost/",
-        "https://localhost:3000",
         "http://localhost:3000",
-        "https://localhost:5173",
         "http://localhost:5173",
-        "https://localhost:4173",
         "http://localhost:4173",
-        "https://3.38.240.185",
+        "http://localhost",
         "http://3.38.240.185",
-        "https://voice-in-us.com",
         "http://voice-in-us.com",
-        "https://api.voice-in-us.com:8081",  # 추가
-        "https://api.voice-in-us.com",       # 추가
-        "http://api.voice-in-us.com:8081",  # 추가
-        "http://api.voice-in-us.com",       # 추가
+        "https://voice-in-us.com",
+        "http://api.voice-in-us.com:8081",  
+        "http://api.voice-in-us.com",       
         
-    ],  
-    allow_origin_regex=r"https://.*\.ngrok-free\.app",
+        # ⚠️ [필수 추가] 안드로이드 앱(APK) 환경 대응용 가상 Origin 주소들
+        "http://localhost:8080",            # 모바일 WebView/웹뷰 환경의 기본 로컬 주소
+        "https://localhost",                # Capacitor/Cordova 등 일부 하이브리드 앱 기본 주소
+        "http://localhost:80",              
+        "null",                             # 앱 보안 정책상 Origin 헤더가 'null' 문자열로 넘어오는 경우 대비
+    ],
+    # allow_origin_regex=r"https://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
