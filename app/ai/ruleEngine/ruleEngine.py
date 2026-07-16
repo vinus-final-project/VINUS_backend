@@ -25,6 +25,127 @@ from app.services.menus import Menus
 
 class RuleEngine:
 
+    # ------------------------------------------------------------------
+    # 작성 중 주문(order_item) 이탈 차단 안내 문구
+    #   정책: 옵션 선택 중에는 "취소" / "주문 완료" 로만 빠져나갈 수 있다.
+    #   (STT 오인식 한 번에 고르던 옵션이 날아가는 사고 방지)
+    #   voicePipeline 의 NAVIGATE 차단과 문구를 공유한다.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def composing_block_msg_ruleEngine_ruleEngine(session: Optional[Session]) -> str:
+        menu = session.current_menu if session is not None else None
+        name = menu.get("m_name") if isinstance(menu, dict) else None
+        target = f"{name} " if name else ""
+        return (
+            f"지금 {target}옵션을 선택 중이에요. "
+            "담으시려면 주문 완료, 그만두시려면 취소라고 말씀해주세요."
+        )
+
+    # ------------------------------------------------------------------
+    # 메뉴 메타 캐시 (에코백용): m_id → {"name", "unit"}
+    #   수량 단위: 디저트 카테고리만 "개", 그 외(음료)는 "잔".
+    #   서버 기동 후 첫 사용 시 1회 로드 — 메뉴 변경은 재시작 시 반영.
+    # ------------------------------------------------------------------
+    _menu_meta_cache: Optional[Dict[int, Dict[str, str]]] = None
+
+    @staticmethod
+    async def _menu_meta_ruleEngine_ruleEngine(
+        db: AsyncSession, menu_id: Optional[int],
+    ) -> Optional[Dict[str, str]]:
+        if menu_id is None:
+            return None
+        if RuleEngine._menu_meta_cache is None:
+            try:
+                boot = await Menus.get_bootstrap_services_menus(db)
+                dessert_ids = {
+                    c["c_id"] for c in boot["categories"]
+                    if "디저트" in c["c_name"]
+                }
+                RuleEngine._menu_meta_cache = {
+                    m["m_id"]: {
+                        "name": m["m_name"],
+                        "unit": "개" if m["c_id"] in dessert_ids else "잔",
+                    }
+                    for m in boot["menus"]
+                }
+            except Exception:
+                return None  # 로드 실패 — 에코는 폴백 문구/단위 사용
+        return RuleEngine._menu_meta_cache.get(menu_id)
+
+    # ------------------------------------------------------------------
+    # 캐시에서 수량 단위만 동기 조회 (컨트롤러 에코용, db 불필요)
+    #   주문 흐름상 create_order_item(캐시 웜업) 이후에만 수량/카트 에코가
+    #   나가므로 대부분 적중. 미적중 시 "개" 폴백.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def menu_unit_cached_ruleEngine_ruleEngine(menu_id: Optional[int]) -> str:
+        meta = (RuleEngine._menu_meta_cache or {}).get(menu_id)
+        return meta["unit"] if meta else "개"
+
+    # ------------------------------------------------------------------
+    # 음성 ORDER 발화 에코 요약 (에코백 2단계)
+    #   한 발화가 이벤트 여러 개로 번역되면("아메리카노 세잔" =
+    #   SELECT_MENU + SET_QUANTITY) 컨트롤러 에코가 마지막 것만 남는
+    #   문제 보정 — 발화 전체를 한 문장으로 요약해 caller message 로
+    #   전달한다 (EventExecutor 정책: caller 문구가 컨트롤러 문구를
+    #   덮고, 이벤트 실패 시엔 무시됨). None 반환 시 컨트롤러 에코 유지.
+    # ------------------------------------------------------------------
+    @staticmethod
+    async def build_order_echo_ruleEngine_ruleEngine(
+        db: AsyncSession, session: Optional[Session], e: Dict[str, Any],
+    ) -> Optional[str]:
+        if e.get("skip_optional"):
+            return None  # "주문 완료" — 담기 에코(컨트롤러) 유지
+
+        menu_id = e.get("menu")
+        current = session.order_item if session is not None else None
+        is_new_menu = menu_id is not None and not (
+            current is not None and current.menu_id == menu_id
+        )
+        quantity = e.get("quantity")
+        required = e.get("required_option") or []
+        optional = e.get("optional_option") or []
+
+        # 단위/이름 기준 메뉴: 이번 발화 메뉴 → 없으면 작성 중 메뉴
+        unit_menu_id = menu_id if menu_id is not None else (
+            current.menu_id if current is not None else None
+        )
+        meta = await RuleEngine._menu_meta_ruleEngine_ruleEngine(db, unit_menu_id)
+        unit = meta["unit"] if meta else "개"
+
+        parts: List[str] = []
+
+        # 1) 메뉴 선택 (+수량 병합: "아메리카노 3잔 선택했어요.")
+        if is_new_menu:
+            name = meta["name"] if meta else "메뉴"
+            qty_txt = f" {quantity}{unit}" if quantity else ""
+            parts.append(f"{name}{qty_txt} 선택했어요.")
+
+        # 2) 옵션 — 추가/빼기 각각 묶어서 (개수 포함: "샷 추가 2개")
+        adds: List[str] = list(required)
+        rems: List[str] = []
+        for item in optional:
+            count = int(item.get("count", 1) or 1)
+            label = item["value"] if count <= 1 else f"{item['value']} {count}개"
+            (rems if item.get("action") == "REMOVE" else adds).append(label)
+        if adds:
+            parts.append(f"{', '.join(adds)} 넣었어요.")
+        if rems:
+            parts.append(f"{', '.join(rems)} 뺐어요.")
+
+        # 3) 수량 단독 변경 ("세 잔으로 해줘" — 작성 중 메뉴 수량)
+        if quantity is not None and not is_new_menu:
+            josa = "으로" if unit == "잔" else "로"
+            parts.append(f"{quantity}{unit}{josa} 변경했어요.")
+
+        if not parts:
+            return None  # 요약할 게 없으면 컨트롤러 에코 유지
+
+        # 4) 새 메뉴 선택 시 다음 행동 안내
+        if is_new_menu:
+            parts.append("옵션을 골라주세요.")
+        return " ".join(parts)
+
     @staticmethod
     async def build_events_ruleEngine_ruleEngine(
         db: AsyncSession,
@@ -37,7 +158,7 @@ class RuleEngine:
         if intent == "SESSION":
             return RuleEngine._session_events_ruleEngine_ruleEngine(entities)
         if intent == "CANCEL":
-            return RuleEngine._cancel_events_ruleEngine_ruleEngine(session)
+            return RuleEngine._cancel_events_ruleEngine_ruleEngine(session, entities)
         if intent == "PAYMENT":
             return [FSMEvent(type=Event.START_PAYMENT)]
         if intent == "RECOMMEND":
@@ -68,7 +189,17 @@ class RuleEngine:
     @staticmethod
     def _cancel_events_ruleEngine_ruleEngine(
         session: Optional[Session],
+        e: Optional[Dict[str, Any]] = None,
     ) -> List[FSMEvent]:
+        # 작성 중 주문 한정 취소 ("다른거 먹을래") — 세션 취소로 번지지 않음
+        if (e or {}).get("scope") == "ORDER_ITEM":
+            if session is not None and session.order_item is not None:
+                return [FSMEvent(type=Event.CANCEL_ORDER_ITEM)]
+            raise rules.PolicyBlockedError(
+                "지금 선택 중인 메뉴가 없어요. 원하시는 메뉴를 말씀해주세요.",
+                reason="NO_COMPOSING_ITEM",
+            )
+
         if session is None:
             raise rules.ParseFailedError(
                 "취소할 주문이 없어요.", reason="NO_SESSION_FOR_CANCEL")
@@ -121,13 +252,15 @@ class RuleEngine:
     ) -> List[FSMEvent]:
         action = e.get("action")
         if action == "SHOW":
-            # 화면 이탈 발화 — 작성 중 주문은 취소하고 카트로
-            #   (화면은 떠났는데 order_item 만 남는 "유령 주문" 방지)
-            events: List[FSMEvent] = []
+            # 작성 중 주문이 있으면 이동 차단 — 취소/주문 완료로만 이탈
+            #   (기존 자동 취소 정책 폐기: 오인식 한 번에 옵션이 날아가는
+            #    사고 방지. 결제 START_PAYMENT 검증과 동일 철학)
             if session is not None and session.order_item is not None:
-                events.append(FSMEvent(type=Event.CANCEL_ORDER_ITEM))
-            events.append(FSMEvent(type=Event.SHOW_CART))
-            return events
+                raise rules.PolicyBlockedError(
+                    RuleEngine.composing_block_msg_ruleEngine_ruleEngine(session),
+                    reason="COMPOSING_ITEM",
+                )
+            return [FSMEvent(type=Event.SHOW_CART)]
         if action == "CLEAR":
             return [FSMEvent(type=Event.CLEAR_CART)]
 
@@ -163,7 +296,7 @@ class RuleEngine:
         # "아메리카노 하나 추가" 인데 그 메뉴(+옵션 조합)가 카트에 없으면
         # 신규 주문으로 해석
         #   ("아이스 아메리카노 추가"인데 카트에 핫만 있으면 → 아이스 신규 주문)
-        #   (다른 메뉴를 작성 중이었다면 폐기 후 시작 — 새 메뉴 발화 = 이전 포기 의도)
+        #   (다른 메뉴를 작성 중이면 차단 — 취소/주문 완료로만 이탈)
         option_filter = e.get("option_filter")
         if (
             action == "INCREASE"
@@ -183,13 +316,14 @@ class RuleEngine:
                 )
             )
         ):
-            events = []
             if session is not None and session.order_item is not None:
-                events.append(FSMEvent(type=Event.CANCEL_ORDER_ITEM))
-            events.append(
+                raise rules.PolicyBlockedError(
+                    RuleEngine.composing_block_msg_ruleEngine_ruleEngine(session),
+                    reason="COMPOSING_ITEM",
+                )
+            return [
                 FSMEvent(type=Event.SELECT_MENU, parameters={"menu_id": menu_id})
-            )
-            return events
+            ]
 
         # 메뉴 지정 없는 "추가/빼줘" 인데 주문 작성 중이면
         # 카트가 아니라 현재 주문(order_item) 수량 증감으로 해석
@@ -287,17 +421,21 @@ class RuleEngine:
         events: List[FSMEvent] = []
         menu_id = e.get("menu")
 
-        # 1) SELECT_MENU (+ 작성 중 주문 정리)
+        # 1) SELECT_MENU (+ 작성 중 주문 보호)
         #   - 같은 메뉴 재언급: 새로 만들지 않고 옵션/수량만 이어서 적용
-        #   - 다른 메뉴 발화: 이전 작성 중 주문 폐기 후 새 주문
-        #     (새 메뉴를 말했다 = 이전 걸 포기한다는 의도 — ORDER_ITEM_EXISTS 방지)
+        #   - 다른 메뉴 발화: 차단 — 취소/주문 완료로만 이탈
+        #     (기존 자동 교체 정책 폐기: 오인식 한 번에 작성 중 주문이
+        #      날아가는 사고 방지)
         if menu_id is not None:
             current = session.order_item if session is not None else None
             if current is not None and current.menu_id == menu_id:
                 pass  # 같은 메뉴 — SELECT_MENU 생략, 아래 옵션/수량만 적용
+            elif current is not None:
+                raise rules.PolicyBlockedError(
+                    RuleEngine.composing_block_msg_ruleEngine_ruleEngine(session),
+                    reason="COMPOSING_ITEM",
+                )
             else:
-                if current is not None:
-                    events.append(FSMEvent(type=Event.CANCEL_ORDER_ITEM))
                 events.append(
                     FSMEvent(type=Event.SELECT_MENU, parameters={"menu_id": menu_id})
                 )

@@ -106,6 +106,7 @@ app.add_middleware(
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:4173",
+        "http://localhost",
         "http://3.38.240.185",
         "http://voice-in-us.com",
         "https://voice-in-us.com",
