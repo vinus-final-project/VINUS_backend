@@ -110,6 +110,8 @@ app.add_middleware(
         "http://3.38.240.185",
         "http://voice-in-us.com",
         "https://voice-in-us.com",
+        "http://api.voice-in-us.com:8081",
+        "http://api.voice-in-us.com",
     ],
     allow_origin_regex=r"https://.*\.ngrok-free\.app",
     allow_credentials=True,
