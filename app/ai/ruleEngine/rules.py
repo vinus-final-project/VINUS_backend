@@ -29,6 +29,9 @@ MENU_NAMES_BY_LEN: List[str] = sorted(MENU_DICTIONARY.keys(), key=len, reverse=T
 SESSION_CANCEL_KEYWORDS = ("처음부터", "처음으로", "전부 취소", "다 취소", "그만할", "그만둘")
 # 제네릭 취소 — RuleEngine 이 세션 문맥으로 결제취소/주문취소/세션취소 결정
 CANCEL_KEYWORDS = ("취소",)
+# 작성 중 주문 한정 취소 ("다른거 먹을래") — 제네릭 취소와 달리
+# 세션 취소로 번지지 않는다 (order_item 없으면 안내만)
+ORDER_ITEM_CANCEL_KEYWORDS = ("다른거", "다른 거", "다른걸", "다른 걸", "딴거", "딴 거")
 ORDER_TYPE_KEYWORDS = {"매장": "STORE", "먹고": "STORE", "마시고": "STORE",
                        "포장": "TAKEOUT", "테이크아웃": "TAKEOUT", "가져갈": "TAKEOUT", "갖고": "TAKEOUT", "들고": "TAKEOUT"}
 PAYMENT_KEYWORDS = ("결제", "계산", "지불")

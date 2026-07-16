@@ -64,6 +64,11 @@ class OrderController:
         )
         session.current_menu = menu  # 메뉴 스냅샷 저장
 
+        # 수량 단위(잔/개) 캐시 웜업 — 이후 수량/카트 에코가 동기 조회로 사용
+        #   (지연 import: controllers → ruleEngine 단방향이라 순환 없음)
+        from app.ai.ruleEngine.ruleEngine import RuleEngine
+        await RuleEngine._menu_meta_ruleEngine_ruleEngine(db, menu_id)
+
         # 에코백 — 터치/음성 공용 (확인 + 다음 행동 안내)
         session.message = f"{menu['m_name']} 선택했어요. 옵션을 골라주세요."
 
@@ -171,8 +176,13 @@ class OrderController:
         # 수량은 값만 갱신
         session.order_item.quantity = quantity
 
-        # 에코백 (터치/음성 공용)
-        session.message = f"{quantity}개로 변경했어요."
+        # 에코백 (터치/음성 공용) — 단위: 디저트 "개", 음료 "잔"
+        from app.ai.ruleEngine.ruleEngine import RuleEngine
+        unit = RuleEngine.menu_unit_cached_ruleEngine_ruleEngine(
+            session.order_item.menu_id
+        )
+        josa = "으로" if unit == "잔" else "로"
+        session.message = f"{quantity}{unit}{josa} 변경했어요."
 
     # ------------------------------------------------------------------
     # complete_order_item : 작성 완료 (개수 기준 필수/min/max 검증)

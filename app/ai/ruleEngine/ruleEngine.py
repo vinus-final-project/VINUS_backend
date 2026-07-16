@@ -73,6 +73,16 @@ class RuleEngine:
         return RuleEngine._menu_meta_cache.get(menu_id)
 
     # ------------------------------------------------------------------
+    # 캐시에서 수량 단위만 동기 조회 (컨트롤러 에코용, db 불필요)
+    #   주문 흐름상 create_order_item(캐시 웜업) 이후에만 수량/카트 에코가
+    #   나가므로 대부분 적중. 미적중 시 "개" 폴백.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def menu_unit_cached_ruleEngine_ruleEngine(menu_id: Optional[int]) -> str:
+        meta = (RuleEngine._menu_meta_cache or {}).get(menu_id)
+        return meta["unit"] if meta else "개"
+
+    # ------------------------------------------------------------------
     # 음성 ORDER 발화 에코 요약 (에코백 2단계)
     #   한 발화가 이벤트 여러 개로 번역되면("아메리카노 세잔" =
     #   SELECT_MENU + SET_QUANTITY) 컨트롤러 에코가 마지막 것만 남는
@@ -148,7 +158,7 @@ class RuleEngine:
         if intent == "SESSION":
             return RuleEngine._session_events_ruleEngine_ruleEngine(entities)
         if intent == "CANCEL":
-            return RuleEngine._cancel_events_ruleEngine_ruleEngine(session)
+            return RuleEngine._cancel_events_ruleEngine_ruleEngine(session, entities)
         if intent == "PAYMENT":
             return [FSMEvent(type=Event.START_PAYMENT)]
         if intent == "RECOMMEND":
@@ -179,7 +189,17 @@ class RuleEngine:
     @staticmethod
     def _cancel_events_ruleEngine_ruleEngine(
         session: Optional[Session],
+        e: Optional[Dict[str, Any]] = None,
     ) -> List[FSMEvent]:
+        # 작성 중 주문 한정 취소 ("다른거 먹을래") — 세션 취소로 번지지 않음
+        if (e or {}).get("scope") == "ORDER_ITEM":
+            if session is not None and session.order_item is not None:
+                return [FSMEvent(type=Event.CANCEL_ORDER_ITEM)]
+            raise rules.PolicyBlockedError(
+                "지금 선택 중인 메뉴가 없어요. 원하시는 메뉴를 말씀해주세요.",
+                reason="NO_COMPOSING_ITEM",
+            )
+
         if session is None:
             raise rules.ParseFailedError(
                 "취소할 주문이 없어요.", reason="NO_SESSION_FOR_CANCEL")
