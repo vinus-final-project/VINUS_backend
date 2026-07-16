@@ -103,14 +103,17 @@ app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "http://localhost",
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:4173",
-        "http://localhost",
         "http://3.38.240.185",
         "http://voice-in-us.com",
         "https://voice-in-us.com",
-    ],
+        "http://api.voice-in-us.com:8081",  # 추가
+        "http://api.voice-in-us.com",       # 추가
+        
+    ],  
     allow_origin_regex=r"https://.*\.ngrok-free\.app",
     allow_credentials=True,
     allow_methods=["*"],
