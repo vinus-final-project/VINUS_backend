@@ -103,13 +103,20 @@ app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "https://localhost",
         "http://localhost",
+        "https://localhost:3000",
         "http://localhost:3000",
+        "https://localhost:5173",
         "http://localhost:5173",
+        "https://localhost:4173",
         "http://localhost:4173",
+        "https://3.38.240.185",
         "http://3.38.240.185",
-        "http://voice-in-us.com",
         "https://voice-in-us.com",
+        "http://voice-in-us.com",
+        "https://api.voice-in-us.com:8081",  # 추가
+        "https://api.voice-in-us.com",       # 추가
         "http://api.voice-in-us.com:8081",  # 추가
         "http://api.voice-in-us.com",       # 추가
         
