@@ -45,6 +45,10 @@ jobs:
             --query taskDefinition \
             > task-definition.json
 
+      - name: Remove unsupported fields
+        run: |
+          jq 'del(.enableFaultInjection)' task-definition.json > tmp.json && mv tmp.json task-definition.json
+
       # 3. Task Definition 내의 컨테이너 이미지 주소를 방금 푸시한 SHA 태그로 교체
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: render-task-def
