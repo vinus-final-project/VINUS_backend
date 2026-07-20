@@ -225,3 +225,4 @@ async def run_all_seeds(db: AsyncSession):
             db.add(MenuIngredients(m_id=m_id, i_id=i_id))
     await db.flush()
     # commit은 lifespan의 session.begin() 이 처리
+    
