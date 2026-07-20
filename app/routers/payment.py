@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
@@ -54,6 +55,71 @@ async def confirm_routers_payment(
         order_id=payment_data.order_id,
         payment_key=payment_data.payment_key,
         amount=payment_data.amount,
+    )
+
+
+# ──────────────────────────────────────────────────────────────
+# 토스 리다이렉트 수신 (Capacitor apk 전용 흐름)
+#
+# apk 에서는 토스 결제창이 "외부 크롬"에서 열리므로 successUrl 을
+# https://localhost(앱)로 줄 수 없다 — 크롬에는 그 주소가 없어서
+# ERR_CONNECTION_REFUSED. 대신 successUrl/failUrl 을 이 엔드포인트로
+# 지정한다:
+#   1) 토스가 크롬을 이리로 리다이렉트 (성공: paymentKey/orderId/amount,
+#      실패: code/message 쿼리)
+#   2) 성공이면 서버가 직접 confirm(승인+DB저장+WS push) 수행
+#      — confirm 내부의 WS PAYMENT_SUCCESS push 가 살아있는 앱 화면을
+#        즉시 전환시킨다 (앱 WebView 는 /pay 에서 대기 중)
+#   3) 응답 HTML 이 voiceinus:// 딥링크로 앱을 전면 복귀시킨다
+#
+# session_id 는 orderId 접두(UUID 36자)에서 복원 —
+# 프론트가 orderId = f"{session_id}-{timestamp}" 로 생성한다.
+# ──────────────────────────────────────────────────────────────
+DEEPLINK_SUCCESS = "voiceinus://payment-success"
+DEEPLINK_FAIL = "voiceinus://payment-fail"
+
+
+def _deeplink_page_routers_payment(target: str, text: str) -> HTMLResponse:
+    """딥링크 자동 이동 페이지 (meta refresh + JS + 수동 링크 3중 폴백)."""
+    html = (
+        "<!doctype html><html><head><meta charset='utf-8'>"
+        f"<meta http-equiv='refresh' content='0;url={target}'></head>"
+        "<body style='font-family:sans-serif;text-align:center;padding-top:40vh;font-size:20px'>"
+        f"{text}<br><br><a href='{target}'>앱으로 돌아가기</a>"
+        f"<script>location.href='{target}';</script></body></html>"
+    )
+    return HTMLResponse(html)
+
+
+@router.get("/toss/return")
+async def toss_return_routers_payment(
+    orderId: str = "",
+    paymentKey: str = "",
+    amount: int = 0,
+    code: str | None = None,       # 토스 failUrl 리다이렉트에 붙는 실패 코드
+    db: AsyncSession = Depends(get_db),
+):
+    # 실패 리다이렉트 or 필수 파라미터 누락
+    if code or not paymentKey or not orderId:
+        return _deeplink_page_routers_payment(
+            DEEPLINK_FAIL, "결제가 완료되지 않았습니다."
+        )
+
+    session_id = orderId[:36]  # UUID 접두 복원
+    try:
+        await Payment.confirm_services_payment(
+            db=db,
+            session_id=session_id,
+            order_id=orderId,
+            payment_key=paymentKey,
+            amount=amount,
+        )
+    except HTTPException:
+        return _deeplink_page_routers_payment(
+            DEEPLINK_FAIL, "결제 승인에 실패했습니다."
+        )
+    return _deeplink_page_routers_payment(
+        DEEPLINK_SUCCESS, "결제가 완료되었습니다."
     )
 
 
