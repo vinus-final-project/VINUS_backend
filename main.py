@@ -134,19 +134,13 @@ app.add_middleware(
         "http://3.38.240.185",
         "http://voice-in-us.com",
         "https://voice-in-us.com",
-<<<<<<< HEAD
         "http://api.voice-in-us.com:8081",  
         "http://api.voice-in-us.com",       
         
         # ⚠️ [필수 추가] 안드로이드 앱(APK) 환경 대응용 가상 Origin 주소들
         "http://localhost:8080",            # 모바일 WebView/웹뷰 환경의 기본 로컬 주소
-        "https://localhost",                # Capacitor/Cordova 등 일부 하이브리드 앱 기본 주소
         "http://localhost:80",              
         "null",                             # 앱 보안 정책상 Origin 헤더가 'null' 문자열로 넘어오는 경우 대비
-=======
-        "http://api.voice-in-us.com:8081",
-        "http://api.voice-in-us.com",
->>>>>>> b41e84f (seed 수정)
     ],
     # allow_origin_regex=r"https://.*",
     allow_credentials=True,
