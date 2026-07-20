@@ -11,10 +11,8 @@ from dotenv import load_dotenv
 #    이 줄이 아래 import 들보다 늦으면 .env 의 STT_DEVICE 설정이 무시된다.
 load_dotenv(dotenv_path=".env")
 
-from fastapi import FastAPI, Request  # 👈 Request 임포트 추가
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware  # 👈 BaseHTTPMiddleware 임포트 추가
-from starlette.responses import Response  # 👈 Response 임포트 추가
 
 from app.core.constants import (
     SESSION_TTL_SECONDS,
@@ -102,27 +100,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-# 1. 안전한 커스텀 CORS 주입 미들웨어 (에러가 나도 강제로 헤더를 붙여줌)
-class SuperCORSMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        # OPTIONS 요청(프리플라이트)은 바로 200 OK로 빠르게 통과시킴
-        if request.method == "OPTIONS":
-            response = Response(status_code=200)
-        else:
-            response = await call_next(request)
-            
-        # 모든 응답에 폰(웹뷰) 주소와 커스텀 헤더를 강제로 주입
-        response.headers["Access-Control-Allow-Origin"] = "https://localhost"
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept, Origin, X-Requested-With, ngrok-skip-browser-warning"
-        return response
-
-# 커스텀 미들웨어를 가장 먼저 실행되도록 등록
-app.add_middleware(SuperCORSMiddleware)
-
-
 # CORS — 키오스크 프론트(React/Vite) 주소. 실제 포트에 맞게 조정
+#   (SuperCORSMiddleware 는 제거 — 아래 정식 리스트가 https://localhost 등
+#    APK WebView origin 을 전부 커버해 잉여였고, ACAO 하드코딩이
+#    웹(5173) 환경을 깨뜨릴 수 있는 리스크만 남겼음)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
