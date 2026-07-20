@@ -130,6 +130,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:4173",
         "http://localhost",
+        "https://localhost",   # APK WebView origin (androidScheme https 기본값)
         "http://3.38.240.185",
         "http://voice-in-us.com",
         "https://voice-in-us.com",
