@@ -104,6 +104,11 @@ class RuleParser:
         ):
             return "CANCEL", {"scope": "ORDER_ITEM"}
 
+        # 2.7) 마지막 안내 재낭독 ("다시 들려줘" / "뭐라고?") —
+        #      barge-in 으로 안내가 끊긴 사용자의 복구 수단 (상태 무변경)
+        if not menu_ids and any(k in text for k in rules.REPEAT_KEYWORDS):
+            return "REPEAT", {}
+
         for kw, ot in rules.ORDER_TYPE_KEYWORDS.items():
             if kw in text:
                 return "SESSION", {"order_type": ot}
@@ -155,6 +160,21 @@ class RuleParser:
                         if option_filter:
                             e["option_filter"] = option_filter
                 return "CART", e
+
+        # 3.5) 메뉴 낭독: "메뉴 알려줘" / "커피 뭐 있어" — 음성 메뉴판
+        #      (화면을 볼 수 없는 사용자용. 카테고리 전환보다 먼저 검사 —
+        #       "커피 뭐 있어"가 탭 전환으로만 처리되지 않도록)
+        #      카테고리가 함께 언급되면 그 카테고리 메뉴 낭독,
+        #      없거나 "전체"면 카테고리 목록 안내 (voicePipeline 처리)
+        if not menu_ids and not has_option_word and any(
+            k in text for k in rules.MENU_LIST_KEYWORDS
+        ):
+            e: Dict[str, Any] = {"type": "MENU_LIST"}
+            for kw, c_name in rules.CATEGORY_KEYWORDS.items():
+                if kw in text and c_name != "전체":
+                    e["category"] = c_name
+                    break
+            return "INFO", e
 
         # 4) 카테고리 전환: "커피 메뉴 보여줘" — NAVIGATE 보다 먼저 검사
         #    ("메뉴 보여" 키워드에 선점당하지 않도록)

@@ -34,6 +34,7 @@ from app.interface.dto.sessionResponse import ResponseType, SessionResponse
 from app.memory.session.enums import SpeakerType
 from app.memory.session.session import Session
 from app.memory.session.sessionCrud import SessionCrud
+from app.services.menus import Menus
 
 
 class VoicePipeline:
@@ -99,6 +100,48 @@ class VoicePipeline:
             nr = NormalizeResult(session_id=session_id, text=normalized)
             parse_result = RuleParser.parse_ruleEngine_ruleParser(nr)
 
+            # 메뉴 낭독 이어듣기 컨텍스트 정리 — 낭독 요청/"다음"/"이전" 외의
+            # 발화가 오면 초기화 (이후 "다음/이전"은 조용한 페이지 넘김으로 복귀)
+            if session is not None and session.menu_browse is not None:
+                is_browse_page = (
+                    parse_result.intent == "NAVIGATE"
+                    and parse_result.entities.get("page") in ("NEXT", "PREV")
+                )
+                is_menu_list = (
+                    parse_result.intent == "INFO"
+                    and parse_result.entities.get("type") == "MENU_LIST"
+                )
+                # REPEAT("다시 들려줘")도 낭독 컨텍스트 유지 — 재낭독 후
+                # "다음"으로 계속 이어들을 수 있어야 한다
+                if not is_browse_page and not is_menu_list and (
+                    parse_result.intent != "REPEAT"
+                ):
+                    session.menu_browse = None
+
+            # 마지막 안내 재낭독 ("다시 들려줘") — barge-in 으로 끊긴 안내 복구
+            #   (상태 무변경, 낭독 이어듣기 컨텍스트도 유지)
+            if parse_result.intent == "REPEAT":
+                if session is not None and session.last_message:
+                    return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                        session, session.last_message,
+                    )
+                # 재낭독할 이력 없음 — 이 안내 자체는 기록하지 않음
+                return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                    session,
+                    "다시 들려드릴 안내가 없어요. 주문하실 메뉴를 말씀해주세요.",
+                    record=False,
+                )
+
+            # 메뉴 낭독 ("메뉴 알려줘"/"커피 뭐 있어") — 음성 메뉴판
+            #   (상태 변경 없음 — 화면을 볼 수 없는 사용자용)
+            if (
+                parse_result.intent == "INFO"
+                and parse_result.entities.get("type") == "MENU_LIST"
+            ):
+                return await VoicePipeline._handle_menu_list_pipeline_voicePipeline(
+                    db, session, parse_result.entities.get("category"),
+                )
+
             # 화면 이동 발화 ("돌아가/메뉴 더") — FSM 이벤트 없이 SHOW_MENU 응답
             #   (상태 변화가 없어 프론트가 구분할 수 없으므로 응답 타입으로 전달)
             if parse_result.intent == "NAVIGATE":
@@ -106,6 +149,21 @@ class VoicePipeline:
                 if parse_result.entities.get("target") == "PAY":
                     return await VoicePipeline._handle_pay_pipeline_voicePipeline(
                         db, session, parse_result.entities.get("method"),
+                    )
+
+                # 메뉴 낭독 진행 중의 "다음/이전" — 화면 페이지를 넘기면서
+                # 새 페이지 메뉴를 함께 낭독 (페이지 동기화 낭독)
+                if (
+                    session is not None
+                    and session.menu_browse is not None
+                    and parse_result.entities.get("page") in ("NEXT", "PREV")
+                ):
+                    step = 1 if parse_result.entities.get("page") == "NEXT" else -1
+                    return await VoicePipeline._handle_menu_list_pipeline_voicePipeline(
+                        db,
+                        session,
+                        session.menu_browse.get("category"),
+                        page=int(session.menu_browse.get("page", 0)) + step,
                     )
 
                 # 작성 중 주문이 있으면 이동 차단 — 취소/주문 완료로만 이탈
@@ -167,13 +225,115 @@ class VoicePipeline:
                 )
             except Exception:
                 # 2차 폴백 : AI 서버 장애/타임아웃 → 규칙 안내 문구 (상태 변경 없음)
+                #   재질문 문구는 last_message 에 기록하지 않는다 —
+                #   "다시 들려줘"의 복구 대상은 직전의 실제 안내여야 함
                 return VoicePipeline._build_guidance_pipeline_voicePipeline(
-                    session, exc.message,
+                    session, exc.message, record=False,
                 )
 
         # EventExecutor : FIFO 실행 → SessionResponse (실패 시 내부에서 에러 응답 조립)
         return await EventExecutor.execute_ruleEngine_eventExecutor(
             db=db, session=session, events=events, message=echo,
+        )
+
+    # ------------------------------------------------------------------
+    # 메뉴 낭독 ("메뉴 알려줘" / "커피 뭐 있어") — 화면 페이지 동기화 낭독
+    #   - 카테고리 미지정: 카테고리 목록만 안내 (화면 이동 없음)
+    #   - 카테고리 지정: 화면을 그 카테고리 탭 + 해당 페이지로 전환하면서
+    #     그 페이지에 보이는 메뉴(6개)를 낭독 — "보이는 것 = 들리는 것"
+    #   - 낭독 진행 중 "다음/이전": 화면 페이지 이동 + 새 페이지 낭독
+    #     (진행 상태는 session.menu_browse = {"category", "page"})
+    #   - 터치 페이지 넘김에는 낭독을 붙이지 않는다 (음성 요청에만 음성 응답).
+    #     터치로 페이지가 어긋나도 다음 발화의 page_index 가 화면을 재동기화.
+    #   FSM 상태 변경 없음 (조회 전용 — 작성 중 주문 차단 정책과 무관)
+    # ------------------------------------------------------------------
+    MENU_PAGE_SIZE = 6  # ⚠ 프론트 order 페이지 PAGE_SIZE 와 반드시 동일하게 유지
+
+    @staticmethod
+    async def _handle_menu_list_pipeline_voicePipeline(
+        db: AsyncSession,
+        session: Optional[Session],
+        category: Optional[str],
+        page: Optional[int] = None,
+    ) -> SessionResponse:
+        if session is None:
+            return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                session, "먼저 매장 또는 포장을 선택해 주세요.",
+            )
+
+        boot = await Menus.get_bootstrap_services_menus(db)
+        speak = lambda name: name.replace("/", ", ")  # "커피/라떼" TTS 낭독용
+
+        # 카테고리 미지정 → 카테고리 목록 안내 (화면 이동 없음)
+        if not category:
+            session.menu_browse = None
+            names = ", ".join(speak(c["c_name"]) for c in boot["categories"])
+            return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                session,
+                f"{names} 종류가 있어요. 어떤 종류를 알려드릴까요?",
+            )
+
+        c_id = next(
+            (c["c_id"] for c in boot["categories"] if c["c_name"] == category),
+            None,
+        )
+        if c_id is None:
+            session.menu_browse = None
+            return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                session, "그 종류는 찾지 못했어요. 다시 말씀해주세요.",
+            )
+
+        items = [m["m_name"] for m in boot["menus"] if m["c_id"] == c_id]
+        size = VoicePipeline.MENU_PAGE_SIZE
+        total_pages = max(1, -(-len(items) // size))  # ceil
+
+        # 대상 페이지 — 새 낭독은 1페이지, "다음/이전"은 ±1 (경계 클램프)
+        target = 0 if page is None else page
+        boundary_note = ""
+        if target < 0:
+            target = 0
+            boundary_note = "첫 페이지예요. "
+        elif target >= total_pages:
+            target = total_pages - 1
+            boundary_note = "마지막 페이지예요. "
+
+        chunk = items[target * size:(target + 1) * size]
+        listed = ", ".join(chunk)
+
+        # 진행 상태 저장 — 다른 발화가 오면 process() 초입에서 해제됨
+        session.menu_browse = {"category": category, "page": target}
+
+        head = (
+            f"{speak(category)} 메뉴는 모두 {len(items)}개, {total_pages}페이지예요. "
+            if page is None else f"{target + 1}페이지. "
+        )
+        tail = (
+            "주문하실 메뉴를 말씀해주세요."
+            if target == total_pages - 1
+            else "계속 보시려면 다음, 주문하시려면 메뉴 이름을 말씀해주세요."
+        )
+        message = f"{boundary_note}{head}{listed}. {tail}"
+        session.last_message = message  # "다시 들려줘"(REPEAT) 재낭독용
+
+        # 화면 동기화 응답 — SHOW_MENU 로 해당 카테고리 탭 + 절대 페이지 지정
+        return SessionResponse(
+            response_type=ResponseType.SHOW_MENU,
+            session_id=session.session_id,
+            success=True,
+            message=message,
+            category=category,
+            page_index=target,
+            fsm_state=session.fsm_state,
+            order_type=session.order_type,
+            order_item=session.order_item,
+            current_menu=session.current_menu,
+            cart=session.cart,
+            total_price=sum(
+                ci.unit_price * ci.quantity for ci in session.cart
+            ),
+            recommendation_list=session.recommendation_list,
+            error_code=None,
+            session_end=False,
         )
 
     # ------------------------------------------------------------------
@@ -249,6 +409,7 @@ class VoicePipeline:
                 "메뉴 화면으로 돌아갈게요. "
                 "주문하실 메뉴를 말씀하시거나 화면에서 선택해주세요."
             )
+        session.last_message = message  # "다시 들려줘"(REPEAT) 재낭독용
         return SessionResponse(
             response_type=ResponseType.SHOW_MENU,
             session_id=session.session_id,
@@ -276,7 +437,13 @@ class VoicePipeline:
     def _build_guidance_pipeline_voicePipeline(
         session: Optional[Session],
         message: str,
+        record: bool = True,
     ) -> SessionResponse:
+        # record=False: "다시 한 번 말씀해 주세요" 같은 재질문/인식실패
+        # 문구는 last_message 를 덮지 않는다 — 안 그러면 안내가 끊긴 뒤
+        # 오인식 한 번에 "다시 들려줘"의 복구 대상이 재질문 문구로 바뀜
+        if session is not None and record:
+            session.last_message = message  # "다시 들려줘"(REPEAT) 재낭독용
         return SessionResponse(
             response_type=ResponseType.NORMAL,
             session_id=session.session_id if session else "",

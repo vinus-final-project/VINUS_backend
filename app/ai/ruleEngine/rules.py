@@ -32,6 +32,10 @@ CANCEL_KEYWORDS = ("취소",)
 # 작성 중 주문 한정 취소 ("다른거 먹을래") — 제네릭 취소와 달리
 # 세션 취소로 번지지 않는다 (order_item 없으면 안내만)
 ORDER_ITEM_CANCEL_KEYWORDS = ("다른거", "다른 거", "다른걸", "다른 걸", "딴거", "딴 거")
+# 마지막 안내 재낭독 ("다시 들려줘") — barge-in 으로 안내가 끊겼을 때 복구.
+# 단독 "다시"는 제외 ("다시 주문할래" 등과 겹침) — 복합 표현만 보수적으로.
+REPEAT_KEYWORDS = ("다시 들려", "다시 말해", "다시 알려", "다시 얘기",
+                   "뭐라고", "뭐라구", "못 들었", "한 번 더 말", "한번 더 말")
 ORDER_TYPE_KEYWORDS = {"매장": "STORE", "먹고": "STORE", "마시고": "STORE",
                        "포장": "TAKEOUT", "테이크아웃": "TAKEOUT", "가져갈": "TAKEOUT", "갖고": "TAKEOUT", "들고": "TAKEOUT"}
 PAYMENT_KEYWORDS = ("결제", "계산", "지불")
@@ -91,6 +95,11 @@ ORDINAL_KEYWORDS = {
 OPTION_REMOVE_ALL_KEYWORDS = ("전부", "모두", "다 ")
 RECOMMEND_ACCEPT_KEYWORDS = ("그걸로", "그거로", "추천 메뉴")
 RECOMMEND_REQUEST_KEYWORDS = ("추천",)
+# 메뉴 낭독 요청 ("메뉴 알려줘", "커피 뭐 있어") — 화면을 볼 수 없는
+# 사용자를 위한 음성 메뉴판. 메뉴명이 함께 감지되면 이 분기가 아니라
+# 기존 INFO(메뉴 상세)로 처리된다.
+MENU_LIST_KEYWORDS = ("뭐 있", "뭐가 있", "메뉴 알려", "무슨 메뉴",
+                      "어떤 메뉴", "메뉴 읽어", "종류 알려", "종류 뭐")
 INFO_KEYWORDS = ("뭐 있어", "메뉴 알려", "무슨 메뉴", "설명",
                  "얼마", "가격", "뭐야", "들어가", "알레르기", "성분")
 SKIP_OPTIONAL_KEYWORDS = (
