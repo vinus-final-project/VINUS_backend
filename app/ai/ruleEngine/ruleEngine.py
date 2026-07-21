@@ -141,9 +141,9 @@ class RuleEngine:
         if not parts:
             return None  # 요약할 게 없으면 컨트롤러 에코 유지
 
-        # 4) 새 메뉴 선택 시 다음 행동 안내
+        # 4) 새 메뉴 선택 시 다음 행동 안내 + 탈출 방법
         if is_new_menu:
-            parts.append("옵션을 골라주세요.")
+            parts.append("옵션을 골라주세요. 다 고르셨으면 주문 완료라고 말씀해주세요.")
         return " ".join(parts)
 
     @staticmethod

@@ -46,11 +46,16 @@ class CartController:
         session.order_item = None
         session.current_menu = None
 
-        # 에코백 (터치/음성 공용)
-        session.message = (
+        # 에코백 (터치/음성 공용) — 확인 + 다음 행동 안내
+        #   (눈 감고 쓰는 사용자는 다음에 뭘 말해야 하는지 알 수 없음)
+        base = (
             f"{menu_name} 장바구니에 담았어요."
             if menu_name
             else "장바구니에 담았어요."
+        )
+        session.message = (
+            base + " 계속 주문하시려면 메뉴 이름을, "
+            "결제하시려면 결제라고 말씀해주세요."
         )
 
     # 장바구니 항목 삭제 (없으면 CART_ITEM_NOT_FOUND)

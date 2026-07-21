@@ -34,6 +34,7 @@ from app.interface.dto.sessionResponse import ResponseType, SessionResponse
 from app.memory.session.enums import SpeakerType
 from app.memory.session.session import Session
 from app.memory.session.sessionCrud import SessionCrud
+from app.services.menus import Menus
 
 
 class VoicePipeline:
@@ -99,6 +100,30 @@ class VoicePipeline:
             nr = NormalizeResult(session_id=session_id, text=normalized)
             parse_result = RuleParser.parse_ruleEngine_ruleParser(nr)
 
+            # 메뉴 낭독 이어듣기 컨텍스트 정리 — 낭독 요청/"다음" 외의
+            # 발화가 오면 초기화 (이후 "다음"은 다시 페이지 넘김으로 동작)
+            if session is not None and session.menu_browse is not None:
+                is_browse_next = (
+                    parse_result.intent == "NAVIGATE"
+                    and parse_result.entities.get("page") == "NEXT"
+                )
+                is_menu_list = (
+                    parse_result.intent == "INFO"
+                    and parse_result.entities.get("type") == "MENU_LIST"
+                )
+                if not is_browse_next and not is_menu_list:
+                    session.menu_browse = None
+
+            # 메뉴 낭독 ("메뉴 알려줘"/"커피 뭐 있어") — 음성 메뉴판
+            #   (상태 변경 없음 — 화면을 볼 수 없는 사용자용)
+            if (
+                parse_result.intent == "INFO"
+                and parse_result.entities.get("type") == "MENU_LIST"
+            ):
+                return await VoicePipeline._handle_menu_list_pipeline_voicePipeline(
+                    db, session, parse_result.entities.get("category"),
+                )
+
             # 화면 이동 발화 ("돌아가/메뉴 더") — FSM 이벤트 없이 SHOW_MENU 응답
             #   (상태 변화가 없어 프론트가 구분할 수 없으므로 응답 타입으로 전달)
             if parse_result.intent == "NAVIGATE":
@@ -106,6 +131,16 @@ class VoicePipeline:
                 if parse_result.entities.get("target") == "PAY":
                     return await VoicePipeline._handle_pay_pipeline_voicePipeline(
                         db, session, parse_result.entities.get("method"),
+                    )
+
+                # 메뉴 낭독 진행 중의 "다음" — 페이지 넘김이 아니라 다음 청크
+                if (
+                    session is not None
+                    and session.menu_browse is not None
+                    and parse_result.entities.get("page") == "NEXT"
+                ):
+                    return await VoicePipeline._handle_menu_list_pipeline_voicePipeline(
+                        db, session, session.menu_browse.get("category"),
                     )
 
                 # 작성 중 주문이 있으면 이동 차단 — 취소/주문 완료로만 이탈
@@ -175,6 +210,86 @@ class VoicePipeline:
         return await EventExecutor.execute_ruleEngine_eventExecutor(
             db=db, session=session, events=events, message=echo,
         )
+
+    # ------------------------------------------------------------------
+    # 메뉴 낭독 ("메뉴 알려줘" / "커피 뭐 있어") — 음성 메뉴판
+    #   - 카테고리 미지정: 카테고리 목록 안내
+    #   - 카테고리 지정: 메뉴 이름을 청크(7개)로 낭독,
+    #     "다음" 발화로 이어듣기 (session.menu_browse 에 진행 상태 보관)
+    #   상태 변경 없음 (조회 전용 — 작성 중 주문 차단 정책과 무관)
+    # ------------------------------------------------------------------
+    MENU_LIST_CHUNK = 7
+
+    @staticmethod
+    async def _handle_menu_list_pipeline_voicePipeline(
+        db: AsyncSession,
+        session: Optional[Session],
+        category: Optional[str],
+    ) -> SessionResponse:
+        if session is None:
+            return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                session, "먼저 매장 또는 포장을 선택해 주세요.",
+            )
+
+        boot = await Menus.get_bootstrap_services_menus(db)
+        speak = lambda name: name.replace("/", ", ")  # "커피/라떼" TTS 낭독용
+
+        # 카테고리 미지정 → 카테고리 목록 안내
+        if not category:
+            session.menu_browse = None
+            names = ", ".join(speak(c["c_name"]) for c in boot["categories"])
+            return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                session,
+                f"{names} 종류가 있어요. 어떤 종류를 알려드릴까요?",
+            )
+
+        c_id = next(
+            (c["c_id"] for c in boot["categories"] if c["c_name"] == category),
+            None,
+        )
+        if c_id is None:
+            session.menu_browse = None
+            return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                session, "그 종류는 찾지 못했어요. 다시 말씀해주세요.",
+            )
+
+        items = [m["m_name"] for m in boot["menus"] if m["c_id"] == c_id]
+
+        # 이어듣기 offset (같은 카테고리 진행 중일 때만)
+        offset = 0
+        if (
+            session.menu_browse is not None
+            and session.menu_browse.get("category") == category
+        ):
+            offset = int(session.menu_browse.get("offset", 0))
+
+        chunk = items[offset:offset + VoicePipeline.MENU_LIST_CHUNK]
+        if not chunk:
+            session.menu_browse = None
+            return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                session, "메뉴를 전부 알려드렸어요. 주문하실 메뉴를 말씀해주세요.",
+            )
+
+        listed = ", ".join(chunk)
+        next_offset = offset + len(chunk)
+
+        if next_offset < len(items):
+            # 남은 메뉴 있음 — 진행 상태 저장 + 이어듣기 안내
+            session.menu_browse = {"category": category, "offset": next_offset}
+            head = (
+                f"{speak(category)} 메뉴는 모두 {len(items)}개예요. "
+                if offset == 0 else ""
+            )
+            message = (
+                f"{head}{listed}. "
+                "계속 들으시려면 다음, 주문하시려면 메뉴 이름을 말씀해주세요."
+            )
+        else:
+            # 마지막 청크 — 상태 정리 + 주문 유도
+            session.menu_browse = None
+            message = f"{listed} 있어요. 이게 전부예요. 주문하실 메뉴를 말씀해주세요."
+
+        return VoicePipeline._build_guidance_pipeline_voicePipeline(session, message)
 
     # ------------------------------------------------------------------
     # 결제수단 발화 처리 ("카드로 할게요")

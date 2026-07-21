@@ -91,6 +91,11 @@ ORDINAL_KEYWORDS = {
 OPTION_REMOVE_ALL_KEYWORDS = ("전부", "모두", "다 ")
 RECOMMEND_ACCEPT_KEYWORDS = ("그걸로", "그거로", "추천 메뉴")
 RECOMMEND_REQUEST_KEYWORDS = ("추천",)
+# 메뉴 낭독 요청 ("메뉴 알려줘", "커피 뭐 있어") — 화면을 볼 수 없는
+# 사용자를 위한 음성 메뉴판. 메뉴명이 함께 감지되면 이 분기가 아니라
+# 기존 INFO(메뉴 상세)로 처리된다.
+MENU_LIST_KEYWORDS = ("뭐 있", "뭐가 있", "메뉴 알려", "무슨 메뉴",
+                      "어떤 메뉴", "메뉴 읽어", "종류 알려", "종류 뭐")
 INFO_KEYWORDS = ("뭐 있어", "메뉴 알려", "무슨 메뉴", "설명",
                  "얼마", "가격", "뭐야", "들어가", "알레르기", "성분")
 SKIP_OPTIONAL_KEYWORDS = (
