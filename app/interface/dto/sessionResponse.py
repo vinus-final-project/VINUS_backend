@@ -37,3 +37,4 @@ class SessionResponse(BaseModel):
     session_end: bool = False                                       # 세션 종료 여부
     category: Optional[str] = None                                  # 카테고리 전환 힌트 (SHOW_MENU + c_name, 음성 "커피 메뉴 보여줘")
     page_move: Optional[str] = None                                 # 페이지 넘김 힌트 ("NEXT"|"PREV", 음성 "다음 페이지")
+    page_index: Optional[int] = None                                # 절대 페이지 지정 (메뉴 낭독 — 화면 페이지를 낭독 페이지와 동기화)

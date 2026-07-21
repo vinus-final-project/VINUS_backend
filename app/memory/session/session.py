@@ -48,8 +48,9 @@ class Session(BaseModel):
     recommendation_list: list[int] = Field(default_factory=list)   # 추천 메뉴 리스트
     logs: list[Log] = Field(default_factory=list)      # 세션 로그 버퍼
     message: Optional[str] = None                # 사용자에게 보여줄 응답 텍스트(TTS와 동일)
-    # 메뉴 낭독 이어듣기 상태 ("커피 뭐 있어" → 청크 낭독, "다음"으로 계속)
-    #   {"category": c_name, "offset": int} — 낭독 외 발화가 오면 초기화
+    # 메뉴 낭독 이어듣기 상태 ("커피 뭐 있어" → 페이지 동기화 낭독,
+    #   "다음/이전"으로 페이지 이동+낭독 계속)
+    #   {"category": c_name, "page": int} — 낭독 외 발화가 오면 초기화
     menu_browse: Optional[dict] = None
 
     # 카트 아이템 ID 자동 증가용 내부 카운터 (sessionCrud 에서 사용, 직렬화 대상 아님)

@@ -100,18 +100,18 @@ class VoicePipeline:
             nr = NormalizeResult(session_id=session_id, text=normalized)
             parse_result = RuleParser.parse_ruleEngine_ruleParser(nr)
 
-            # 메뉴 낭독 이어듣기 컨텍스트 정리 — 낭독 요청/"다음" 외의
-            # 발화가 오면 초기화 (이후 "다음"은 다시 페이지 넘김으로 동작)
+            # 메뉴 낭독 이어듣기 컨텍스트 정리 — 낭독 요청/"다음"/"이전" 외의
+            # 발화가 오면 초기화 (이후 "다음/이전"은 조용한 페이지 넘김으로 복귀)
             if session is not None and session.menu_browse is not None:
-                is_browse_next = (
+                is_browse_page = (
                     parse_result.intent == "NAVIGATE"
-                    and parse_result.entities.get("page") == "NEXT"
+                    and parse_result.entities.get("page") in ("NEXT", "PREV")
                 )
                 is_menu_list = (
                     parse_result.intent == "INFO"
                     and parse_result.entities.get("type") == "MENU_LIST"
                 )
-                if not is_browse_next and not is_menu_list:
+                if not is_browse_page and not is_menu_list:
                     session.menu_browse = None
 
             # 메뉴 낭독 ("메뉴 알려줘"/"커피 뭐 있어") — 음성 메뉴판
@@ -133,14 +133,19 @@ class VoicePipeline:
                         db, session, parse_result.entities.get("method"),
                     )
 
-                # 메뉴 낭독 진행 중의 "다음" — 페이지 넘김이 아니라 다음 청크
+                # 메뉴 낭독 진행 중의 "다음/이전" — 화면 페이지를 넘기면서
+                # 새 페이지 메뉴를 함께 낭독 (페이지 동기화 낭독)
                 if (
                     session is not None
                     and session.menu_browse is not None
-                    and parse_result.entities.get("page") == "NEXT"
+                    and parse_result.entities.get("page") in ("NEXT", "PREV")
                 ):
+                    step = 1 if parse_result.entities.get("page") == "NEXT" else -1
                     return await VoicePipeline._handle_menu_list_pipeline_voicePipeline(
-                        db, session, session.menu_browse.get("category"),
+                        db,
+                        session,
+                        session.menu_browse.get("category"),
+                        page=int(session.menu_browse.get("page", 0)) + step,
                     )
 
                 # 작성 중 주문이 있으면 이동 차단 — 취소/주문 완료로만 이탈
@@ -212,19 +217,24 @@ class VoicePipeline:
         )
 
     # ------------------------------------------------------------------
-    # 메뉴 낭독 ("메뉴 알려줘" / "커피 뭐 있어") — 음성 메뉴판
-    #   - 카테고리 미지정: 카테고리 목록 안내
-    #   - 카테고리 지정: 메뉴 이름을 청크(7개)로 낭독,
-    #     "다음" 발화로 이어듣기 (session.menu_browse 에 진행 상태 보관)
-    #   상태 변경 없음 (조회 전용 — 작성 중 주문 차단 정책과 무관)
+    # 메뉴 낭독 ("메뉴 알려줘" / "커피 뭐 있어") — 화면 페이지 동기화 낭독
+    #   - 카테고리 미지정: 카테고리 목록만 안내 (화면 이동 없음)
+    #   - 카테고리 지정: 화면을 그 카테고리 탭 + 해당 페이지로 전환하면서
+    #     그 페이지에 보이는 메뉴(6개)를 낭독 — "보이는 것 = 들리는 것"
+    #   - 낭독 진행 중 "다음/이전": 화면 페이지 이동 + 새 페이지 낭독
+    #     (진행 상태는 session.menu_browse = {"category", "page"})
+    #   - 터치 페이지 넘김에는 낭독을 붙이지 않는다 (음성 요청에만 음성 응답).
+    #     터치로 페이지가 어긋나도 다음 발화의 page_index 가 화면을 재동기화.
+    #   FSM 상태 변경 없음 (조회 전용 — 작성 중 주문 차단 정책과 무관)
     # ------------------------------------------------------------------
-    MENU_LIST_CHUNK = 7
+    MENU_PAGE_SIZE = 6  # ⚠ 프론트 order 페이지 PAGE_SIZE 와 반드시 동일하게 유지
 
     @staticmethod
     async def _handle_menu_list_pipeline_voicePipeline(
         db: AsyncSession,
         session: Optional[Session],
         category: Optional[str],
+        page: Optional[int] = None,
     ) -> SessionResponse:
         if session is None:
             return VoicePipeline._build_guidance_pipeline_voicePipeline(
@@ -234,7 +244,7 @@ class VoicePipeline:
         boot = await Menus.get_bootstrap_services_menus(db)
         speak = lambda name: name.replace("/", ", ")  # "커피/라떼" TTS 낭독용
 
-        # 카테고리 미지정 → 카테고리 목록 안내
+        # 카테고리 미지정 → 카테고리 목록 안내 (화면 이동 없음)
         if not category:
             session.menu_browse = None
             names = ", ".join(speak(c["c_name"]) for c in boot["categories"])
@@ -254,42 +264,56 @@ class VoicePipeline:
             )
 
         items = [m["m_name"] for m in boot["menus"] if m["c_id"] == c_id]
+        size = VoicePipeline.MENU_PAGE_SIZE
+        total_pages = max(1, -(-len(items) // size))  # ceil
 
-        # 이어듣기 offset (같은 카테고리 진행 중일 때만)
-        offset = 0
-        if (
-            session.menu_browse is not None
-            and session.menu_browse.get("category") == category
-        ):
-            offset = int(session.menu_browse.get("offset", 0))
+        # 대상 페이지 — 새 낭독은 1페이지, "다음/이전"은 ±1 (경계 클램프)
+        target = 0 if page is None else page
+        boundary_note = ""
+        if target < 0:
+            target = 0
+            boundary_note = "첫 페이지예요. "
+        elif target >= total_pages:
+            target = total_pages - 1
+            boundary_note = "마지막 페이지예요. "
 
-        chunk = items[offset:offset + VoicePipeline.MENU_LIST_CHUNK]
-        if not chunk:
-            session.menu_browse = None
-            return VoicePipeline._build_guidance_pipeline_voicePipeline(
-                session, "메뉴를 전부 알려드렸어요. 주문하실 메뉴를 말씀해주세요.",
-            )
-
+        chunk = items[target * size:(target + 1) * size]
         listed = ", ".join(chunk)
-        next_offset = offset + len(chunk)
 
-        if next_offset < len(items):
-            # 남은 메뉴 있음 — 진행 상태 저장 + 이어듣기 안내
-            session.menu_browse = {"category": category, "offset": next_offset}
-            head = (
-                f"{speak(category)} 메뉴는 모두 {len(items)}개예요. "
-                if offset == 0 else ""
-            )
-            message = (
-                f"{head}{listed}. "
-                "계속 들으시려면 다음, 주문하시려면 메뉴 이름을 말씀해주세요."
-            )
-        else:
-            # 마지막 청크 — 상태 정리 + 주문 유도
-            session.menu_browse = None
-            message = f"{listed} 있어요. 이게 전부예요. 주문하실 메뉴를 말씀해주세요."
+        # 진행 상태 저장 — 다른 발화가 오면 process() 초입에서 해제됨
+        session.menu_browse = {"category": category, "page": target}
 
-        return VoicePipeline._build_guidance_pipeline_voicePipeline(session, message)
+        head = (
+            f"{speak(category)} 메뉴는 모두 {len(items)}개, {total_pages}페이지예요. "
+            if page is None else f"{target + 1}페이지. "
+        )
+        tail = (
+            "주문하실 메뉴를 말씀해주세요."
+            if target == total_pages - 1
+            else "계속 보시려면 다음, 주문하시려면 메뉴 이름을 말씀해주세요."
+        )
+        message = f"{boundary_note}{head}{listed}. {tail}"
+
+        # 화면 동기화 응답 — SHOW_MENU 로 해당 카테고리 탭 + 절대 페이지 지정
+        return SessionResponse(
+            response_type=ResponseType.SHOW_MENU,
+            session_id=session.session_id,
+            success=True,
+            message=message,
+            category=category,
+            page_index=target,
+            fsm_state=session.fsm_state,
+            order_type=session.order_type,
+            order_item=session.order_item,
+            current_menu=session.current_menu,
+            cart=session.cart,
+            total_price=sum(
+                ci.unit_price * ci.quantity for ci in session.cart
+            ),
+            recommendation_list=session.recommendation_list,
+            error_code=None,
+            session_end=False,
+        )
 
     # ------------------------------------------------------------------
     # 결제수단 발화 처리 ("카드로 할게요")
