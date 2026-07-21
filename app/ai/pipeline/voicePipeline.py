@@ -111,8 +111,26 @@ class VoicePipeline:
                     parse_result.intent == "INFO"
                     and parse_result.entities.get("type") == "MENU_LIST"
                 )
-                if not is_browse_page and not is_menu_list:
+                # REPEAT("다시 들려줘")도 낭독 컨텍스트 유지 — 재낭독 후
+                # "다음"으로 계속 이어들을 수 있어야 한다
+                if not is_browse_page and not is_menu_list and (
+                    parse_result.intent != "REPEAT"
+                ):
                     session.menu_browse = None
+
+            # 마지막 안내 재낭독 ("다시 들려줘") — barge-in 으로 끊긴 안내 복구
+            #   (상태 무변경, 낭독 이어듣기 컨텍스트도 유지)
+            if parse_result.intent == "REPEAT":
+                if session is not None and session.last_message:
+                    return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                        session, session.last_message,
+                    )
+                # 재낭독할 이력 없음 — 이 안내 자체는 기록하지 않음
+                return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                    session,
+                    "다시 들려드릴 안내가 없어요. 주문하실 메뉴를 말씀해주세요.",
+                    record=False,
+                )
 
             # 메뉴 낭독 ("메뉴 알려줘"/"커피 뭐 있어") — 음성 메뉴판
             #   (상태 변경 없음 — 화면을 볼 수 없는 사용자용)
@@ -207,8 +225,10 @@ class VoicePipeline:
                 )
             except Exception:
                 # 2차 폴백 : AI 서버 장애/타임아웃 → 규칙 안내 문구 (상태 변경 없음)
+                #   재질문 문구는 last_message 에 기록하지 않는다 —
+                #   "다시 들려줘"의 복구 대상은 직전의 실제 안내여야 함
                 return VoicePipeline._build_guidance_pipeline_voicePipeline(
-                    session, exc.message,
+                    session, exc.message, record=False,
                 )
 
         # EventExecutor : FIFO 실행 → SessionResponse (실패 시 내부에서 에러 응답 조립)
@@ -293,6 +313,7 @@ class VoicePipeline:
             else "계속 보시려면 다음, 주문하시려면 메뉴 이름을 말씀해주세요."
         )
         message = f"{boundary_note}{head}{listed}. {tail}"
+        session.last_message = message  # "다시 들려줘"(REPEAT) 재낭독용
 
         # 화면 동기화 응답 — SHOW_MENU 로 해당 카테고리 탭 + 절대 페이지 지정
         return SessionResponse(
@@ -388,6 +409,7 @@ class VoicePipeline:
                 "메뉴 화면으로 돌아갈게요. "
                 "주문하실 메뉴를 말씀하시거나 화면에서 선택해주세요."
             )
+        session.last_message = message  # "다시 들려줘"(REPEAT) 재낭독용
         return SessionResponse(
             response_type=ResponseType.SHOW_MENU,
             session_id=session.session_id,
@@ -415,7 +437,13 @@ class VoicePipeline:
     def _build_guidance_pipeline_voicePipeline(
         session: Optional[Session],
         message: str,
+        record: bool = True,
     ) -> SessionResponse:
+        # record=False: "다시 한 번 말씀해 주세요" 같은 재질문/인식실패
+        # 문구는 last_message 를 덮지 않는다 — 안 그러면 안내가 끊긴 뒤
+        # 오인식 한 번에 "다시 들려줘"의 복구 대상이 재질문 문구로 바뀜
+        if session is not None and record:
+            session.last_message = message  # "다시 들려줘"(REPEAT) 재낭독용
         return SessionResponse(
             response_type=ResponseType.NORMAL,
             session_id=session.session_id if session else "",

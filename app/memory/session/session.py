@@ -52,6 +52,9 @@ class Session(BaseModel):
     #   "다음/이전"으로 페이지 이동+낭독 계속)
     #   {"category": c_name, "page": int} — 낭독 외 발화가 오면 초기화
     menu_browse: Optional[dict] = None
+    # 마지막으로 사용자에게 나간 안내 문구 — "다시 들려줘"(REPEAT) 재낭독용.
+    #   message 와 달리 턴 시작에 초기화하지 않고 계속 보관한다.
+    last_message: Optional[str] = None
 
     # 카트 아이템 ID 자동 증가용 내부 카운터 (sessionCrud 에서 사용, 직렬화 대상 아님)
     # PrivateAttr 은 이름이 underscore 로 시작해야 합니다.

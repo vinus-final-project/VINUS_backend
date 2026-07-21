@@ -32,6 +32,10 @@ CANCEL_KEYWORDS = ("취소",)
 # 작성 중 주문 한정 취소 ("다른거 먹을래") — 제네릭 취소와 달리
 # 세션 취소로 번지지 않는다 (order_item 없으면 안내만)
 ORDER_ITEM_CANCEL_KEYWORDS = ("다른거", "다른 거", "다른걸", "다른 걸", "딴거", "딴 거")
+# 마지막 안내 재낭독 ("다시 들려줘") — barge-in 으로 안내가 끊겼을 때 복구.
+# 단독 "다시"는 제외 ("다시 주문할래" 등과 겹침) — 복합 표현만 보수적으로.
+REPEAT_KEYWORDS = ("다시 들려", "다시 말해", "다시 알려", "다시 얘기",
+                   "뭐라고", "뭐라구", "못 들었", "한 번 더 말", "한번 더 말")
 ORDER_TYPE_KEYWORDS = {"매장": "STORE", "먹고": "STORE", "마시고": "STORE",
                        "포장": "TAKEOUT", "테이크아웃": "TAKEOUT", "가져갈": "TAKEOUT", "갖고": "TAKEOUT", "들고": "TAKEOUT"}
 PAYMENT_KEYWORDS = ("결제", "계산", "지불")

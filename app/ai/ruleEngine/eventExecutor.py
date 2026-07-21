@@ -103,6 +103,7 @@ class EventExecutor:
             return
         session.last_active_at = datetime.now()
         if message:
+            session.last_message = message  # "다시 들려줘"(REPEAT) 재낭독용
             await SessionCrud.create_log_session_sessionCrud(
                 session=session,
                 speaker=SpeakerType.AI,

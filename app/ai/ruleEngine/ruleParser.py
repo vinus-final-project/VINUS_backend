@@ -104,6 +104,11 @@ class RuleParser:
         ):
             return "CANCEL", {"scope": "ORDER_ITEM"}
 
+        # 2.7) 마지막 안내 재낭독 ("다시 들려줘" / "뭐라고?") —
+        #      barge-in 으로 안내가 끊긴 사용자의 복구 수단 (상태 무변경)
+        if not menu_ids and any(k in text for k in rules.REPEAT_KEYWORDS):
+            return "REPEAT", {}
+
         for kw, ot in rules.ORDER_TYPE_KEYWORDS.items():
             if kw in text:
                 return "SESSION", {"order_type": ot}
