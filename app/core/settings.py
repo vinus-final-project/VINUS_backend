@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     db_name: str = Field(..., alias="DB_NAME")
 
     # AI 서버
-    ai_server_url: str = Field("http://localhost:8000", alias="AI_SERVER_URL")
+    ai_server_url: str = Field("http://localhost:8001", alias="AI_SERVER_URL")
 
     # 토스페이먼츠
     toss_secret_key: str = Field(..., alias="TOSS_SECRET_KEY")
