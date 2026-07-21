@@ -21,8 +21,27 @@ class CartController:
     async def get_cart_controllers_cartController(
         session: Session,
     ) -> list[CartItem]:
-        # 에코백 — 확인 + 다음 행동 안내 (터치/음성 공용)
-        session.message = "장바구니 화면이에요. 주문 내역을 확인해주세요."
+        # 에코백 — 카트 내용 낭독 (화면을 볼 수 없는 사용자용).
+        #   음성 "장바구니 보여줘"(SHOW_CART 이벤트)에서만 발동 —
+        #   터치 카트 진입은 REST 를 안 부르므로 PageGuide 문구가 담당.
+        if not session.cart:
+            session.message = "장바구니가 비어 있어요. 주문하실 메뉴를 말씀해주세요."
+            return session.cart
+
+        # 항목 낭독 — 단위(음료 잔/디저트 개)는 ruleEngine 메뉴 메타 캐시 재사용
+        from app.ai.ruleEngine.ruleEngine import RuleEngine
+        parts = []
+        for ci in session.cart[:5]:
+            unit = RuleEngine.menu_unit_cached_ruleEngine_ruleEngine(ci.menu_id)
+            parts.append(f"{ci.menu_name} {ci.quantity}{unit}")
+        rest = len(session.cart) - 5
+        listed = ", ".join(parts) + (f" 외 {rest}가지" if rest > 0 else "")
+
+        total = sum(ci.unit_price * ci.quantity for ci in session.cart)
+        session.message = (
+            f"장바구니에 {listed}, 합계 {total:,}원이에요. "
+            "결제하시려면 결제, 빼시려면 메뉴 이름과 함께 빼줘라고 말씀해주세요."
+        )
         return session.cart
 
     # 현재 OrderItem을 장바구니에 추가 + order_item 제거

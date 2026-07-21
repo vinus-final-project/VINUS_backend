@@ -129,6 +129,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 헬스체크 — ALB 대상 그룹/모니터링용 (경로를 /health 로 지정할 것).
+#   DB 등 의존성 검사는 일부러 안 함 — DB 순간 장애 시 ALB 가 앱 태스크까지
+#   연쇄로 죽이는 부작용 방지 ("프로세스 살아있음"만 판정하는 것이 정석)
+@app.get("/health")
+async def health():
+    return {"ok": True}
+
+
 # 라우터 등록
 app.include_router(categories_router)
 app.include_router(menus_router)
