@@ -73,6 +73,29 @@ class RuleEngine:
         return RuleEngine._menu_meta_cache.get(menu_id)
 
     # ------------------------------------------------------------------
+    # 메뉴 옵션 그룹 안내 문구 (에코백용) — 화면을 볼 수 없는 사용자에게
+    # "무슨 옵션이 존재하는지" 그룹 이름만 짧게 알려준다.
+    #   그룹 있음: "온도, 사이즈, 시럽 옵션이 있어요. …"
+    #   그룹 없음(디저트 등): "옵션 없이 바로 담을 수 있어요. …"
+    # ------------------------------------------------------------------
+    @staticmethod
+    def option_guide_msg_ruleEngine_ruleEngine(
+        menu: Optional[Dict[str, Any]],
+    ) -> str:
+        groups = menu.get("option_groups", []) if isinstance(menu, dict) else []
+        names = [g.get("og_name") for g in groups if g.get("og_name")]
+        if not names:
+            return (
+                "옵션 없이 바로 담을 수 있어요. "
+                "담으시려면 주문 완료라고 말씀해주세요."
+            )
+        return (
+            f"{', '.join(names)} 옵션이 있어요. "
+            f"자세한 건 {names[0]} 뭐 있어처럼 물어보시고, "
+            "다 고르셨으면 주문 완료라고 말씀해주세요."
+        )
+
+    # ------------------------------------------------------------------
     # 캐시에서 수량 단위만 동기 조회 (컨트롤러 에코용, db 불필요)
     #   주문 흐름상 create_order_item(캐시 웜업) 이후에만 수량/카트 에코가
     #   나가므로 대부분 적중. 미적중 시 "개" 폴백.
@@ -141,9 +164,20 @@ class RuleEngine:
         if not parts:
             return None  # 요약할 게 없으면 컨트롤러 에코 유지
 
-        # 4) 새 메뉴 선택 시 다음 행동 안내 + 탈출 방법
+        # 4) 새 메뉴 선택 시 옵션 그룹 안내 + 탈출 방법
+        #    (메뉴 상세를 로드해 그룹 이름을 알려줌 — 실패 시 일반 안내 폴백)
         if is_new_menu:
-            parts.append("옵션을 골라주세요. 다 고르셨으면 주문 완료라고 말씀해주세요.")
+            try:
+                menu_detail = await Menus.get_single_menu_detail_services_menus(
+                    m_id=menu_id, db=db,
+                )
+                parts.append(
+                    RuleEngine.option_guide_msg_ruleEngine_ruleEngine(menu_detail)
+                )
+            except Exception:
+                parts.append(
+                    "옵션을 골라주세요. 다 고르셨으면 주문 완료라고 말씀해주세요."
+                )
         return " ".join(parts)
 
     @staticmethod

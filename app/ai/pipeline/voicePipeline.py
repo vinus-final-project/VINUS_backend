@@ -132,6 +132,16 @@ class VoicePipeline:
                     record=False,
                 )
 
+            # 옵션 그룹 질의 ("시럽 뭐 있어?") — 현재 메뉴의 옵션 낭독
+            #   (상태 변경 없음 — current_menu 스냅샷만 조회)
+            if (
+                parse_result.intent == "INFO"
+                and parse_result.entities.get("type") == "OPTION_LIST"
+            ):
+                return VoicePipeline._handle_option_list_pipeline_voicePipeline(
+                    session, parse_result.entities.get("group"),
+                )
+
             # 메뉴 낭독 ("메뉴 알려줘"/"커피 뭐 있어") — 음성 메뉴판
             #   (상태 변경 없음 — 화면을 볼 수 없는 사용자용)
             if (
@@ -234,6 +244,51 @@ class VoicePipeline:
         # EventExecutor : FIFO 실행 → SessionResponse (실패 시 내부에서 에러 응답 조립)
         return await EventExecutor.execute_ruleEngine_eventExecutor(
             db=db, session=session, events=events, message=echo,
+        )
+
+    # ------------------------------------------------------------------
+    # 옵션 그룹 질의 ("시럽 뭐 있어?" / "옵션 뭐 있어?")
+    #   현재 작성 중 메뉴(current_menu 스냅샷)의 옵션을 낭독한다.
+    #   - 그룹 지정: 그 그룹의 옵션 값 나열 (og_name 부분일치)
+    #   - 그룹 미지정("옵션 뭐 있어"): 그룹 이름 나열 (드릴다운 유도)
+    #   상태 변경 없음 (조회 전용)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _handle_option_list_pipeline_voicePipeline(
+        session: Optional[Session],
+        group: Optional[str],
+    ) -> SessionResponse:
+        menu = session.current_menu if session is not None else None
+        if not isinstance(menu, dict):
+            return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                session,
+                "먼저 메뉴를 선택해주세요. 메뉴를 고르시면 옵션을 알려드릴게요.",
+            )
+
+        groups = menu.get("option_groups", []) or []
+
+        # 그룹 지정 질의 ("시럽 뭐 있어") — og_name 부분일치로 탐색
+        if group:
+            for g in groups:
+                if group in (g.get("og_name") or ""):
+                    names = [
+                        o.get("op_name")
+                        for o in g.get("options", [])
+                        if o.get("op_name")
+                    ]
+                    if names:
+                        return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                            session,
+                            f"{g['og_name']}에는 {', '.join(names)}이 있어요. "
+                            "넣으시려면 이름과 함께 추가라고 말씀해주세요.",
+                        )
+            return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                session, f"이 메뉴에는 {group} 옵션이 없어요.",
+            )
+
+        # 그룹 미지정 ("옵션 뭐 있어") — 그룹 이름 나열
+        return VoicePipeline._build_guidance_pipeline_voicePipeline(
+            session, RuleEngine.option_guide_msg_ruleEngine_ruleEngine(menu),
         )
 
     # ------------------------------------------------------------------

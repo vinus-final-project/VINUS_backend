@@ -161,6 +161,19 @@ class RuleParser:
                             e["option_filter"] = option_filter
                 return "CART", e
 
+        # 3.3) 옵션 그룹 질의: "시럽 뭐 있어?" / "옵션 뭐 있어?"
+        #      메뉴 낭독(3.5)보다 먼저 검사 — "옵션 뭐 있어"의 "뭐 있"이
+        #      카테고리 안내로 새지 않도록. 리스트 키워드 동반 필수라
+        #      "얼음/시럽" 단독 옵션 발화와는 충돌하지 않음.
+        if not menu_ids and any(
+            k in text for k in rules.OPTION_LIST_QUERY_KEYWORDS
+        ):
+            if "옵션" in text:
+                return "INFO", {"type": "OPTION_LIST"}
+            for word, group in rules.OPTION_QUERY_GROUPS.items():
+                if word in text:
+                    return "INFO", {"type": "OPTION_LIST", "group": group}
+
         # 3.5) 메뉴 낭독: "메뉴 알려줘" / "커피 뭐 있어" — 음성 메뉴판
         #      (화면을 볼 수 없는 사용자용. 카테고리 전환보다 먼저 검사 —
         #       "커피 뭐 있어"가 탭 전환으로만 처리되지 않도록)

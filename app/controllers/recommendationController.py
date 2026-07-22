@@ -83,10 +83,11 @@ class RecommendationController:
             db=db, session=session, menu_id=menu_id,
         )
 
-        # 추천 목록 소진 + 안내 문구 (확인 + 다음 행동 + 탈출 방법)
+        # 추천 목록 소진 + 안내 문구 (확인 + 옵션 그룹 안내 + 탈출 방법)
+        from app.ai.ruleEngine.ruleEngine import RuleEngine
         session.recommendation_list = []
         menu_name = (session.current_menu or {}).get("m_name", "")
         session.message = (
-            f"{menu_name} 선택했어요. 옵션을 골라주세요. "
-            "다 고르셨으면 주문 완료라고 말씀해주세요."
+            f"{menu_name} 선택했어요. "
+            + RuleEngine.option_guide_msg_ruleEngine_ruleEngine(session.current_menu)
         )

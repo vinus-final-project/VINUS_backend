@@ -69,10 +69,10 @@ class OrderController:
         from app.ai.ruleEngine.ruleEngine import RuleEngine
         await RuleEngine._menu_meta_ruleEngine_ruleEngine(db, menu_id)
 
-        # 에코백 — 터치/음성 공용 (확인 + 다음 행동 안내 + 탈출 방법)
+        # 에코백 — 터치/음성 공용 (확인 + 옵션 그룹 안내 + 탈출 방법)
         session.message = (
-            f"{menu['m_name']} 선택했어요. 옵션을 골라주세요. "
-            "다 고르셨으면 주문 완료라고 말씀해주세요."
+            f"{menu['m_name']} 선택했어요. "
+            + RuleEngine.option_guide_msg_ruleEngine_ruleEngine(menu)
         )
 
     # ------------------------------------------------------------------
