@@ -1,4 +1,5 @@
 import asyncio
+import os
 from datetime import datetime
 
 import uvicorn
@@ -72,6 +73,12 @@ async def _sweep_expired_sessions():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with async_engine.begin() as conn:
+        # RESET_DB=true 로 기동하면 전체 테이블 드롭 후 재생성 (스키마 갱신용).
+        # ⚠ 1회용 스위치 — 리셋 확인 후 반드시 false 로 되돌릴 것!
+        #   켜둔 채 두면 태스크 재시작/오토스케일 때마다 DB(주문 기록 포함)가
+        #   통째로 날아간다. 로컬 .env 에는 아예 넣지 말 것 (실수 방지).
+        if os.getenv("RESET_DB", "false").lower() == "true":
+            await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
     # 시드 — seed.py 만들면 아래 주석 해제
