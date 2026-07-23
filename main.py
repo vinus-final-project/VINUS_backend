@@ -36,7 +36,6 @@ from app.db.models.options import Options
 from app.db.models.orders import Orders
 from app.db.models.orderMenus import OrderMenus
 from app.db.models.orderMenuOptions import OrderMenuOptions
-from app.db.models.voice import Voice
 from app.db.models.sessionLogs import SessionLogs
 from app.db.models.sessions import Sessions
 
@@ -44,7 +43,6 @@ from app.db.models.sessions import Sessions
 
 from app.routers.categories import router as categories_router
 from app.routers.menus import router as menus_router
-from app.routers.voice import router as voice_router
 from app.routers.payment import router as payment_router
 from app.routers.session import router as session_router
 from app.routers.order import router as order_router
@@ -147,7 +145,6 @@ async def health():
 # 라우터 등록
 app.include_router(categories_router)
 app.include_router(menus_router)
-app.include_router(voice_router)
 app.include_router(payment_router)
 app.include_router(session_router)
 app.include_router(order_router)
