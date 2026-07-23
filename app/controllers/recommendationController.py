@@ -37,9 +37,29 @@ class RecommendationController:
         db: AsyncSession,
         session: Session,
         condition: Optional[str] = "",
+        recommendation_list: Optional[list] = None,
     ) -> None:
-        """조건 키워드 매칭 → recommendation_list 갱신 + 안내 문구"""
+        """추천 목록 생성 → recommendation_list 갱신 + 안내 문구.
 
+        - LLM(RAG) 경로: event 로 받은 recommendation_list 를 그대로 사용
+          (안내 문구는 LLM response 가 EventExecutor 에서 message 로 세팅됨)
+        - 룰 경로(폴백): condition 키워드로 m_description 검색
+        """
+
+        # 1) LLM(RAG) 이 추천 목록을 준 경우 → m_id 만 추출해 사용
+        if recommendation_list:
+            ids = []
+            for item in recommendation_list:
+                if isinstance(item, dict) and item.get("m_id"):
+                    ids.append(item["m_id"])
+                elif isinstance(item, int):
+                    ids.append(item)
+            if not ids:
+                raise ValueError("RECOMMENDATION_NOT_FOUND")
+            session.recommendation_list = ids
+            return
+
+        # 2) 룰 기반 검색 (AI서버 미가동/폴백 대비)
         # 조건 문장에서 첫 번째 매칭 키워드 추출 (없으면 None → 기본 추천)
         keyword = next(
             (k for k in RECOMMEND_CONDITION_KEYWORDS if k in (condition or "")),

@@ -206,6 +206,21 @@ class VoicePipeline:
                     session, f"현재 주문 금액은 {total:,}원입니다.",
                 )
 
+            # 추천 요청 → AI서버(RAG+LLM)로 라우팅 (수락 ACCEPT은 룰 유지)
+            #   AiPipeline → AI서버 → REQUEST_RECOMMENDATION(recommendation_list) 실행
+            #   AI 서버 장애/타임아웃 시 아래 룰 기반 추천으로 폴백(무응답 방지)
+            if (
+                parse_result.intent == "RECOMMEND"
+                and parse_result.entities.get("action") == "REQUEST"
+            ):
+                try:
+                    return await AiPipeline.run_llm_pipeline_aiPipeline(
+                        db=db, session=session, query=normalized,
+                    )
+                except Exception as exc:
+                    print(f"[VoicePipeline] 추천 AI 폴백(룰): {exc}")
+                    # 폴백: 아래 build_events 로 진행 → REQUEST_RECOMMENDATION(룰 검색)
+
             # RuleEngine : ParseResult → List[FSMEvent]
             #   (옵션 op_id 해석 실패 등도 RuleParseError 로 폴백 처리)
             events = await RuleEngine.build_events_ruleEngine_ruleEngine(

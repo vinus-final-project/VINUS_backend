@@ -138,7 +138,9 @@ class Dispatcher:
             # ---------- 추천 ----------
             case Event.REQUEST_RECOMMENDATION:
                 await RecommendationController.request_recommendation_controllers_recommendationController(
-                    db=db, session=session, condition=params.get("condition", ""),
+                    db=db, session=session,
+                    condition=params.get("condition", ""),
+                    recommendation_list=params.get("recommendation_list"),
                 )
             case Event.ACCEPT_RECOMMENDATION:
                 await RecommendationController.accept_recommendation_controllers_recommendationController(
