@@ -17,7 +17,6 @@ from collections import Counter
 from app.memory.session.enums import (
     OrderItemStatus,
     SpeakerType,
-    SessionStatus,
 )
 from app.memory.session.cartItem import CartItem, CartItemOption
 from app.memory.session.orderItem import OrderItem
@@ -163,14 +162,6 @@ class SessionCrud:
         session: Session,
     ) -> Session:
         SessionMemory.sessions[session.session_id] = session
-        return session
-
-    # U - Session 만료 처리
-    @staticmethod
-    async def expire_session_session_sessionCrud(
-        session: Session,
-    ) -> Session:
-        session.session_status = SessionStatus.EXPIRED
         return session
     
     # D - Session 삭제 (메모리에서 완전 제거)

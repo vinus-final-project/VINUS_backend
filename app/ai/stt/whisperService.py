@@ -117,7 +117,7 @@ class WhisperService:
             beam_size=1,                        # 키오스크: 속도 우선 (turbo는 1로도 충분)
             temperature=[0.0, 0.2, 0.4],        # 기본 0.0, 반복 루프 감지 시 fallback 탈출
             condition_on_previous_text=False,   # 발화 단건 처리 — 이전 문맥 연결 차단(환각 방지)
-            vad_filter=False,                   # VAD는 프론트에서 수행
+            vad_filter=False,                   # VAD는 백엔드 VadSegmenter 가 수행
             initial_prompt=WhisperService.initial_prompt,
         )
 
