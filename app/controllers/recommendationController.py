@@ -50,10 +50,12 @@ class RecommendationController:
         if recommendation_list:
             ids = []
             for item in recommendation_list:
-                if isinstance(item, dict) and item.get("m_id"):
-                    ids.append(item["m_id"])
-                elif isinstance(item, int):
-                    ids.append(item)
+                # LLM이 문자열/정수 어느 쪽으로 줘도 int 로 통일
+                raw = item.get("m_id") if isinstance(item, dict) else item
+                try:
+                    ids.append(int(raw))
+                except (TypeError, ValueError):
+                    continue
             if not ids:
                 raise ValueError("RECOMMENDATION_NOT_FOUND")
             session.recommendation_list = ids
