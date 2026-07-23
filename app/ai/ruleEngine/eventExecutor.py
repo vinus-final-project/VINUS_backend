@@ -39,6 +39,10 @@ class EventExecutor:
         if session is not None:
             session.message = None
 
+        # 롤백용 스냅샷 — 부분 실행 실패 시 실행 전 상태로 복원(원자성).
+        #   세션이 이번 실행 중 생성되는 경우(snapshot=None)는 복원 대상 아님.
+        snapshot = session.model_copy(deep=True) if session is not None else None
+
         # FIFO 순차 실행
         for fsm_event in events:
             try:
@@ -48,7 +52,11 @@ class EventExecutor:
                     fsm_event=fsm_event,
                 )
             except Exception as exc:
-                # 실패 → 즉시 중단 + 에러 응답 (message 무시, error_code 맵 우선)
+                # 실패 → 즉시 중단. 이미 실행된 앞 이벤트를 스냅샷으로 롤백
+                if snapshot is not None:
+                    await SessionCrud.update_session_session_sessionCrud(snapshot)
+                    session = snapshot
+                # 에러 응답 (message 무시, error_code 맵 우선)
                 response = EventExecutor._build_error_ruleEngine_eventExecutor(
                     session=session,
                     exc=exc,
