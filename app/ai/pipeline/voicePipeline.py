@@ -20,7 +20,6 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.stt.whisperService import WhisperService
-from rapidfuzz import fuzz
 from app.ai.rapidfuzz.normalizer import Normalizer
 from app.ai.ruleEngine import rules
 from app.ai.ruleEngine.ruleParser import RuleParser
@@ -76,7 +75,6 @@ class VoicePipeline:
         session: Optional[Session],
         pcm_bytes: bytes,
         sample_rate: int = 16000,
-        tts_active: bool = False,   # 프론트 TTS 재생 중 플래그 (자기 에코 필터용)
     ) -> Optional[SessionResponse]:
         """PCM → SessionResponse. 환각 필터로 폐기된 발화는 None 반환."""
         session_id = session.session_id if session else None
@@ -90,18 +88,6 @@ class VoicePipeline:
 
         normalized = await Normalizer.normalize_rapidfuzz_normalizer(text)
 
-        # 자기 TTS 에코 차단 — 프론트가 'TTS 재생 중'이라 알린 구간에서만 적용.
-        #   그 구간에 들어온 STT 가 방금 안내한 last_message 와 유사하면(스피커 에코)
-        #   파이프라인 태우지 않고 폐기. 재생 중이 아니면 진짜 발화라 필터 안 함(오판 0).
-        if (
-            tts_active
-            and session is not None
-            and session.last_message
-            and normalized.strip()
-        ):
-            if fuzz.ratio(normalized, session.last_message) >= 60:
-                print(f"[VoicePipeline] 자기 TTS 에코 폐기(재생중): {normalized}")
-                return None
 
         # USER 발화 세션 로그 적재 (세션 생성 전 첫 발화는 제외)
         if session is not None and normalized:
