@@ -35,7 +35,13 @@ class AiPipeline:
         db: AsyncSession,
         session: Optional[Session],
         query: str,
+        extra_allergies: Optional[list] = None,   # 일회성 제외("우유 없는 추천")
     ) -> SessionResponse:
+        # 세션 알레르기 + 이번 요청 일회성 제외 병합
+        _allergies = list(session.allergies) if session else []
+        for _a in (extra_allergies or []):
+            if _a not in _allergies:
+                _allergies.append(_a)
         # 1) AI 서버 호출 (세션 상태 동봉 — LLM 문맥용)
         llm = await call_llm_aiClient(
             se_id=session.session_id if session else "",
@@ -56,7 +62,7 @@ class AiPipeline:
                 if session
                 else None
             ),
-            allergies=(session.allergies if session else None),
+            allergies=(_allergies or None),
         )
 
         # 2) LLMResponse.events → FSMEvent 변환

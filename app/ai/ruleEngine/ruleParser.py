@@ -62,6 +62,23 @@ class RuleParser:
         found.sort(key=lambda x: x[0])
         return found
 
+    # 추천 엔티티 조립 (일회성 제외 재료 추출 포함)
+    @staticmethod
+    def _recommend_entities_ruleEngine_ruleParser(text: str) -> Dict[str, Any]:
+        e: Dict[str, Any] = {"action": "REQUEST", "condition": text}
+        if any(m in text for m in rules.RECOMMEND_EXCLUDE_KEYWORDS):
+            work = text
+            exclude: List[str] = []
+            for alias in sorted(rules.ALLERGEN_ALIASES, key=len, reverse=True):
+                if alias in work:
+                    std = rules.ALLERGEN_ALIASES[alias]
+                    if std not in exclude:
+                        exclude.append(std)
+                    work = work.replace(alias, " ")
+            if exclude:
+                e["exclude"] = exclude
+        return e
+
     # Intent 판별
     @staticmethod
     def _resolve_intent(
@@ -213,7 +230,7 @@ class RuleParser:
                 ):
                     residual = residual.replace(kw, " ")
                 if [w for w in residual.split() if len(w) >= 2]:
-                    return "RECOMMEND", {"action": "REQUEST", "condition": text}
+                    return "RECOMMEND", RuleParser._recommend_entities_ruleEngine_ruleParser(text)
             return "INFO", e
 
         # 4) 카테고리 전환: "커피 메뉴 보여줘" — NAVIGATE 보다 먼저 검사
@@ -257,7 +274,7 @@ class RuleParser:
         if any(k in text for k in rules.RECOMMEND_ACCEPT_KEYWORDS):
             return "RECOMMEND", {"action": "ACCEPT"}
         if any(k in text for k in rules.RECOMMEND_REQUEST_KEYWORDS):
-            return "RECOMMEND", {"action": "REQUEST", "condition": text}
+            return "RECOMMEND", RuleParser._recommend_entities_ruleEngine_ruleParser(text)
 
         if any(k in text for k in rules.INFO_KEYWORDS):
             # 원재료/성분/알레르기 문의는 안전상 직원 안내로 (AI 답변 안 함)

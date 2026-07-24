@@ -249,6 +249,7 @@ class VoicePipeline:
                 try:
                     return await AiPipeline.run_llm_pipeline_aiPipeline(
                         db=db, session=session, query=normalized,
+                        extra_allergies=parse_result.entities.get("exclude"),
                     )
                 except Exception as exc:
                     print(f"[VoicePipeline] 추천 AI 폴백(룰): {exc}")
