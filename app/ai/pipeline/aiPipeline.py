@@ -65,6 +65,9 @@ class AiPipeline:
             allergies=(_allergies or None),
         )
 
+        # AI 응답 로그 — LLM 이 뭐라고 답했는지/이벤트 확인용
+        print(f"[AiPipeline] AI 응답: {llm.response!r} | events={[e.type for e in llm.events]}")
+
         # 2) LLMResponse.events → FSMEvent 변환
         #    (Event enum 에 없는 타입은 건너뜀 — LLM 환각 방어)
         events: list[FSMEvent] = []

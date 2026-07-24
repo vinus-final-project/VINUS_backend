@@ -120,6 +120,9 @@ async def handle_websocket_handler(
                         manager.bind_websocket_manager(key, result.session_id)
                         key = result.session_id
 
+                    # 프로그램 발화 로그 — 룰엔진/LLM/안내 모든 경로의 최종 TTS 문구
+                    print(f"[WS] 발화(TTS): {getattr(result, 'message', None)!r}")
+
                     # ⑤ SessionResponse 송신 (이 연결로 직접 전송)
                     await websocket.send_json(result.model_dump(mode="json"))
                 continue
