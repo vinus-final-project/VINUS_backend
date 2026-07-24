@@ -46,6 +46,7 @@ class Session(BaseModel):
     current_menu: Optional[dict] = None                # 현재 주문 메뉴 상세 스냅샷
     cart: list[CartItem] = Field(default_factory=list) # 장바구니
     recommendation_list: list[int] = Field(default_factory=list)   # 추천 메뉴 리스트
+    allergies: list[str] = Field(default_factory=list)          # 손님 알레르기(표준명) — 추천 필터용
     logs: list[Log] = Field(default_factory=list)      # 세션 로그 버퍼
     message: Optional[str] = None                # 사용자에게 보여줄 응답 텍스트(TTS와 동일)
     # 메뉴 낭독 이어듣기 상태 ("커피 뭐 있어" → 페이지 동기화 낭독,

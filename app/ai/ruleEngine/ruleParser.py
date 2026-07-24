@@ -109,6 +109,20 @@ class RuleParser:
         if not menu_ids and any(k in text for k in rules.REPEAT_KEYWORDS):
             return "REPEAT", {}
 
+        # 2.8) 알레르기 선언 ("우유 알레르기 있어요") — 알레르겐 + 선언마커
+        #      긴 별칭 우선 + 스팬 소비("땅콩" 처리 후 "콩" 재매칭 방지)
+        if any(k in text for k in rules.ALLERGY_DECLARE_KEYWORDS):
+            work = text
+            allergens: List[str] = []
+            for alias in sorted(rules.ALLERGEN_ALIASES, key=len, reverse=True):
+                if alias in work:
+                    std = rules.ALLERGEN_ALIASES[alias]
+                    if std not in allergens:
+                        allergens.append(std)
+                    work = work.replace(alias, " ")
+            if allergens:
+                return "ALLERGY", {"allergens": allergens}
+
         for kw, ot in rules.ORDER_TYPE_KEYWORDS.items():
             if kw in text:
                 return "SESSION", {"order_type": ot}

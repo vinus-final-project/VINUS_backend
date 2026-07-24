@@ -56,6 +56,7 @@ class AiPipeline:
                 if session
                 else None
             ),
+            allergies=(session.allergies if session else None),
         )
 
         # 2) LLMResponse.events → FSMEvent 변환

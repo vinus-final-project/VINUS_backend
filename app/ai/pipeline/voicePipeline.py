@@ -132,6 +132,20 @@ class VoicePipeline:
                     record=False,
                 )
 
+            # 알레르기 선언 ("우유 알레르기 있어요") — 세션에 누적 저장 (상태 무변경)
+            #   이후 추천(RAG)에서 해당 알레르겐 포함 메뉴 제외됨
+            if parse_result.intent == "ALLERGY":
+                allergens = parse_result.entities.get("allergens") or []
+                if session is not None:
+                    for a in allergens:
+                        if a not in session.allergies:
+                            session.allergies.append(a)
+                names = ", ".join(allergens)
+                return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                    session,
+                    f"{names} 알레르기 기억할게요. {names} 든 메뉴는 빼고 추천해드릴게요.",
+                )
+
             # 옵션 그룹 질의 ("시럽 뭐 있어?") — 현재 메뉴의 옵션 낭독
             #   (상태 변경 없음 — current_menu 스냅샷만 조회)
             if (

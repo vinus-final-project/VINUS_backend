@@ -14,6 +14,7 @@ async def call_llm_aiClient(
     order_type: str = None,
     order_item: dict = None,
     cart: list = None,
+    allergies: list = None,
 ) -> LLMResponse:
     """AI 서버 LLM 엔드포인트 호출 → LLMResponse 반환"""
 
@@ -24,6 +25,7 @@ async def call_llm_aiClient(
             order_type=order_type,
             order_item=order_item,
             cart=cart,
+            allergies=allergies,
         ),
         query=query,
     )

@@ -9,6 +9,7 @@ class SessionStateRequest(BaseModel):
     order_type: Optional[str] = None
     order_item: Optional[dict] = None
     cart: Optional[list] = None
+    allergies: Optional[list[str]] = None 
 
 
 class LLMRequest(BaseModel):
