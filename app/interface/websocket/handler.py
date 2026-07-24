@@ -3,7 +3,7 @@ import json
 from fastapi import WebSocket, WebSocketDisconnect
 
 from app.ai.pipeline.voicePipeline import VoicePipeline
-from app.ai.vad.vadService import VadSegmenter
+from app.ai.vad.vadService import VadSegmenter, filter_utterance_vad_vadService
 from app.db.database import AsyncSessionLocal
 from app.memory.session.sessionCrud import SessionCrud
 from app.interface.websocket.manager import manager
@@ -82,6 +82,11 @@ async def handle_websocket_handler(
             if message.get("bytes") is not None:
                 # VAD: 청크를 세그먼터에 밀어넣고, 완성된 발화만 파이프라인으로
                 for utterance in segmenter.feed_vad_vadService(message["bytes"]):
+                    # 앞뒤 무음/제로 패딩 제거 + 실음성 재검증
+                    #   (제거 안 하면 발화 꼬리의 무음에서 Whisper 가 환각 문구 생성)
+                    utterance = filter_utterance_vad_vadService(utterance)
+                    if utterance is None:
+                        continue
                     # ① session_id: metadata 우선, 없으면 이 연결의 bind 키
                     sid = stream_meta.get("session_id") or (
                         key if not key.startswith("anon-") else None
