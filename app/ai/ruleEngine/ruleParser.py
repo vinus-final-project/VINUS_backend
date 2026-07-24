@@ -187,6 +187,19 @@ class RuleParser:
                 if kw in text and c_name != "전체":
                     e["category"] = c_name
                     break
+            # 카테고리를 못 찾았는데 재료/속성어가 남아있으면 → 추천(RAG 검색)으로.
+            #   인식된 키워드(낭독/카테고리/일반어)를 다 빼고 길이 2+ 토큰이 남으면
+            #   "딸기 뭐 있어" 같은 속성 검색으로 판단. (재료명 하드코딩 불필요)
+            if "category" not in e:
+                residual = text
+                for kw in (
+                    list(rules.MENU_LIST_KEYWORDS)
+                    + list(rules.CATEGORY_KEYWORDS.keys())
+                    + list(rules.MENU_LIST_RESIDUAL_STOPWORDS)
+                ):
+                    residual = residual.replace(kw, " ")
+                if [w for w in residual.split() if len(w) >= 2]:
+                    return "RECOMMEND", {"action": "REQUEST", "condition": text}
             return "INFO", e
 
         # 4) 카테고리 전환: "커피 메뉴 보여줘" — NAVIGATE 보다 먼저 검사
