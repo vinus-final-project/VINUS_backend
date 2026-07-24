@@ -277,6 +277,12 @@ class RuleParser:
             return "RECOMMEND", RuleParser._recommend_entities_ruleEngine_ruleParser(text)
 
         if any(k in text for k in rules.INFO_KEYWORDS):
+            # "우유 안 들어간 거" 같은 제외 발화는 원재료 문의가 아니라 추천으로.
+            #   (메뉴/옵션 조작 발화는 제외 — "아메리카노 우유 빼줘", "샷 빼줘")
+            if not menu_ids and not has_option_word and any(
+                x in text for x in rules.RECOMMEND_EXCLUDE_KEYWORDS
+            ):
+                return "RECOMMEND", RuleParser._recommend_entities_ruleEngine_ruleParser(text)
             # 원재료/성분/알레르기 문의는 안전상 직원 안내로 (AI 답변 안 함)
             if any(k in text for k in rules.INGREDIENT_INFO_KEYWORDS):
                 return "INFO", {"type": "INGREDIENT"}
