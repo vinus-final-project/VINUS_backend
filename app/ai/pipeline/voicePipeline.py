@@ -156,6 +156,15 @@ class VoicePipeline:
                     f"{names} 알레르기 기억할게요. {names} 든 메뉴는 빼고 추천해드릴게요.",
                 )
 
+            # 원재료/성분/알레르기 문의 → 안전상 직원 안내 (AI 답변 안 함)
+            if (
+                parse_result.intent == "INFO"
+                and parse_result.entities.get("type") == "INGREDIENT"
+            ):
+                return VoicePipeline._build_guidance_pipeline_voicePipeline(
+                    session, "원재료 문의는 직원에게 부탁드립니다.",
+                )
+
             # 옵션 그룹 질의 ("시럽 뭐 있어?") — 현재 메뉴의 옵션 낭독
             #   (상태 변경 없음 — current_menu 스냅샷만 조회)
             if (

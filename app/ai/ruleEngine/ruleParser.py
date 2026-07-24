@@ -260,6 +260,9 @@ class RuleParser:
             return "RECOMMEND", {"action": "REQUEST", "condition": text}
 
         if any(k in text for k in rules.INFO_KEYWORDS):
+            # 원재료/성분/알레르기 문의는 안전상 직원 안내로 (AI 답변 안 함)
+            if any(k in text for k in rules.INGREDIENT_INFO_KEYWORDS):
+                return "INFO", {"type": "INGREDIENT"}
             e: Dict[str, Any] = {"type": "MENU"}
             if menu_ids:
                 e["menu"] = menu_ids[0]
