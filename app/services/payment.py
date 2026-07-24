@@ -77,7 +77,10 @@ class Payment:
                 detail=response.json().get("message", "결제 승인 실패"),
             )
 
-        # 6) 승인 성공 → 그 순간 메모리 카트를 DB에 저장(PAID)
+        # 6) 승인 성공 — 토스 응답 원본 확보(영수증용, 프론트 전달만. DB 저장 X)
+        toss_payment = response.json()
+
+        # 6-1) 그 순간 메모리 카트를 DB에 저장(PAID)
         od_id = await OrderCrud.save_paid_order_crud_order(
             db=db,
             session=session,
@@ -108,4 +111,5 @@ class Payment:
             od_id=od_id,
             od_state=OdState.PAID.value,
             od_no=0,  # 필요 시 저장함수에서 od_no도 반환하도록 확장 가능
+            payment=toss_payment,   # 토스 응답 원본(method/card/approvedAt/receipt 등)
         )

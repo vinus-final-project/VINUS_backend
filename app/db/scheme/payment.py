@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -17,3 +19,4 @@ class PaymentConfirmResponse(BaseModel):
     od_id: int
     od_state: str
     od_no: int
+    payment: Optional[dict] = None   # 토스 confirm 응답 원본 (영수증용, 프론트 전달만)
