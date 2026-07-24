@@ -36,6 +36,7 @@ async def handle_websocket_handler(
 
     # 이 연결의 스트림 파라미터 (frontend metadata 로 갱신)
     stream_meta: dict = {"sample_rate": 16000, "channels": 1}
+    tts_active = {"on": False}   # 프론트 TTS_STATE — 재생 중이면 에코 필터 적용
 
     # 이 연결 전용 VAD 세그먼터 (연속 PCM → 발화 구간 분리)
     segmenter = VadSegmenter()
@@ -68,6 +69,11 @@ async def handle_websocket_handler(
                 if payload.get("type") == MessageType.PAYMENT_RESULT.value:
                     continue
 
+                # (b-2) TTS_STATE — 스피커 재생 중 플래그 (자기 에코 필터용)
+                if payload.get("type") == "TTS_STATE":
+                    tts_active["on"] = bool(payload.get("active"))
+                    continue
+
                 # (c) 스트림 metadata — 최신 값으로 갱신
                 stream_meta.update(payload)
                 continue
@@ -97,6 +103,7 @@ async def handle_websocket_handler(
                             result = await VoicePipeline.process_pipeline_voicePipeline(
                                 db=db,
                                 session=session,
+                                tts_active=tts_active["on"],
                                 pcm_bytes=utterance,
                                 sample_rate=stream_meta.get("sample_rate", 16000),
                             )
