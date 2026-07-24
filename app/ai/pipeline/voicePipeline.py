@@ -140,6 +140,16 @@ class VoicePipeline:
                     for a in allergens:
                         if a not in session.allergies:
                             session.allergies.append(a)
+                # 같은 발화에 추천 요청도 있으면 → 저장 후 바로 추천 진행
+                #   ("우유 알레르기 있어서 추천해줘" 를 저장만 하고 끝내지 않도록)
+                if any(k in normalized for k in rules.RECOMMEND_REQUEST_KEYWORDS):
+                    try:
+                        return await AiPipeline.run_llm_pipeline_aiPipeline(
+                            db=db, session=session, query=normalized,
+                        )
+                    except Exception as exc:
+                        print(f"[VoicePipeline] 알레르기+추천 AI 폴백: {exc}")
+                        # 실패 시 아래 확인 문구로
                 names = ", ".join(allergens)
                 return VoicePipeline._build_guidance_pipeline_voicePipeline(
                     session,
