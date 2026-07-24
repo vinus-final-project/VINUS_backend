@@ -157,11 +157,18 @@ class EventExecutor:
         session: Optional[Session],
         exc: Exception,
     ) -> SessionResponse:
+        error_code = str(exc)
+        message = get_error_message_error_message(error_code)
+        # 필수 옵션 미충족 → 빠진 그룹을 지목해 구체 안내 (계산 불가 시 generic 유지)
+        if error_code == "REQUIRED_OPTION_MISSING":
+            specific = EventExecutor._required_missing_msg_ruleEngine_eventExecutor(session)
+            if specific:
+                message = specific
         return SessionResponse(
             response_type=ResponseType.ERROR,
             session_id=session.session_id if session else "",
             success=False,
-            message=get_error_message_error_message(str(exc)),
+            message=message,
             fsm_state=session.fsm_state if session else FSMState.INIT,
             order_type=session.order_type if session else None,
             order_item=session.order_item if session else None,
@@ -173,6 +180,31 @@ class EventExecutor:
             recommendation_list=(
                 session.recommendation_list if session else []
             ),
-            error_code=str(exc),
+            error_code=error_code,
             session_end=False,
         )
+
+    # ------------------------------------------------------------------
+    # 필수 옵션 미충족 시 빠진 그룹명 안내 문구 (없으면 None)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _required_missing_msg_ruleEngine_eventExecutor(
+        session: Optional[Session],
+    ) -> Optional[str]:
+        if session is None:
+            return None
+        menu = session.current_menu
+        item = session.order_item
+        if not isinstance(menu, dict) or item is None:
+            return None
+        selected = item.selected_options or {}
+        missing = [
+            g.get("og_name")
+            for g in menu.get("option_groups", [])
+            if g.get("og_required")
+            and not selected.get(g.get("og_id"))
+            and g.get("og_name")
+        ]
+        if not missing:
+            return None
+        return f"{', '.join(missing)}를 아직 안 고르셨어요. 먼저 골라주세요."
