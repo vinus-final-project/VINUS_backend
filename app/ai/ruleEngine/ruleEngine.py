@@ -83,17 +83,25 @@ class RuleEngine:
         menu: Optional[Dict[str, Any]],
     ) -> str:
         groups = menu.get("option_groups", []) if isinstance(menu, dict) else []
-        names = [g.get("og_name") for g in groups if g.get("og_name")]
-        if not names:
+        required = [g.get("og_name") for g in groups if g.get("og_required") and g.get("og_name")]
+        optional = [g.get("og_name") for g in groups if not g.get("og_required") and g.get("og_name")]
+        if not required and not optional:
             return (
                 "옵션 없이 바로 담을 수 있어요. "
                 "담으시려면 주문 완료라고 말씀해주세요."
             )
-        return (
-            f"{', '.join(names)} 옵션이 있어요. "
-            f"자세한 건 {names[0]} 뭐 있어처럼 물어보시고, "
+        parts: List[str] = []
+        # 필수 옵션 먼저 강조 → 선택 옵션은 부가 안내
+        if required:
+            parts.append(f"먼저 {', '.join(required)}을(를) 필수로 골라주세요.")
+        if optional:
+            head = "추가로 " if required else ""
+            parts.append(f"{head}{', '.join(optional)}도 넣을 수 있어요.")
+        parts.append(
+            f"자세한 건 {(required or optional)[0]} 뭐 있어처럼 물어보시고, "
             "다 고르셨으면 주문 완료라고 말씀해주세요."
         )
+        return " ".join(parts)
 
     # ------------------------------------------------------------------
     # 캐시에서 수량 단위만 동기 조회 (컨트롤러 에코용, db 불필요)
